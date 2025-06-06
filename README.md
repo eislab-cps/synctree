@@ -9,7 +9,7 @@
 
 **Key Properties:**
 - **Conflict-free:** No need for manual conflict resolution
-- **Strong wventually consistency:** All replicas converge automatically
+- **Strong eventual consistency:** All replicas converge automatically
 - **Offline-capable:** Changes can be made locally and merged later
 - **Deterministic merge:** The merge process always produces the same result
 
