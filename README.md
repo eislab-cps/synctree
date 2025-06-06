@@ -8,25 +8,24 @@
 - **ECDSA crypto** for node signatures  
 - **ABAC (Attribute-Based Access Control)** for fine-grained permissions  
 
-**Key properties:**
-
+**Key Properties:**
 - **Conflict-free:** No need for manual conflict resolution
 - **Eventually consistent:** All replicas converge automatically
 - **Offline-capable:** Changes can be made locally and merged later
 - **Deterministic merge:** The merge process always produces the same result
 
-## What is a CRDT?
-A [**CRDT** (Conflict-free Replicated Data Type)](https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type) is a data structure designed for distributed systems, allowing multiple replicas to be updated independently and concurrently without coordination.
-
-CRDTs guarantee that all replicas will eventually **converge to the same state**, regardless of the order of updates or network delays.
-
-## Features
+**Key Features:**
 - **Serialization** to/from **JSON**
 - **Secure Import/Export** with signature verification
 - **Tree-structured CRDT**: Nodes can be `Map`, `Array`, or `Literal`
 - **Built-in cryptographic signatures** (ECDSA / SHA3)
 - **Per-node ABAC policy** with recursive inheritance
 - **Offline-capable & mergeable**: supports **merge** & **replay of deltas** of divergent replicas
+
+## What is a CRDT?
+A [**CRDT** (Conflict-free Replicated Data Type)](https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type) is a data structure designed for distributed systems, allowing multiple replicas to be updated independently and concurrently without coordination.
+
+CRDTs guarantee that all replicas will eventually **converge to the same state**, regardless of the order of updates or network delays.
 
 ## Potential Applications
 - **Collaborative editing**  
@@ -44,3 +43,5 @@ CRDTs guarantee that all replicas will eventually **converge to the same state**
   Decentralized Service Registry in SOA or Microservices architectures (e.g. [Eclipse Arrowhead](https://arrowhead.eu/eclipse-arrowhead-2))
 - **Agentic AI Systems**  
   AI agents with shared state and fine-grained access control
+
+# 
