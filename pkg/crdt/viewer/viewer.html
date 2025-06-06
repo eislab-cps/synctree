@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>CRDT Tree Visualizer + ABAC Viewer</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: sans-serif;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+    }
+
+    #drop-area {
+      padding: 20px;
+      border: 2px dashed #ccc;
+      text-align: center;
+      color: #666;
+      flex-shrink: 0;
+    }
+
+    #visualization-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    .legend {
+      padding: 10px;
+      font-size: 14px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .legend-item {
+      margin-right: 20px;
+      display: inline-block;
+    }
+
+    .legend-item svg {
+      vertical-align: middle;
+      border: none;
+      background: none;
+    }
+
+    .legend-item svg * {
+      stroke: none;
+    }
+
+    svg#tree {
+      width: 100%;
+      flex: 1;
+      cursor: grab;
+    }
+
+    /* Modal styles */
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 100;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto;
+      background-color: rgba(0,0,0,0.5);
+    }
+
+    .modal-content {
+      background-color: #fff;
+      margin: 5% auto;
+      padding: 20px;
+      border: 1px solid #888;
+      width: 80%;
+      max-height: 80%;
+      overflow-y: auto;
+      border-radius: 8px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    }
+
+    .close {
+      color: #aaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .close:hover,
+    .close:focus {
+      color: black;
+      text-decoration: none;
+    }
+
+    /* ABAC Table */
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    th, td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: left;
+    }
+
+    th {
+      background-color: #f2f2f2;
+    }
+
+    /* ABAC button */
+    #show-abac-btn {
+      margin: 10px;
+      padding: 8px 12px;
+      background-color: #1f77b4;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    #show-abac-btn:hover {
+      background-color: #155a8a;
+    }
+  </style>
+</head>
+<body>
+
+<div id="app">
+  <div id="drop-area">Drop a CRDT raw JSON file here</div>
+
+  <div id="visualization-container">
+    <div class="legend">
+      <span class="legend-item">
+        <svg width="20" height="20">
+          <circle cx="10" cy="10" r="8" fill="#1f77b4" />
+        </svg>
+        Root Node
+      </span>
+      <span class="legend-item">
+        <svg width="20" height="20">
+          <rect x="3" y="3" width="14" height="14" fill="green" />
+        </svg>
+        Array Node
+      </span>
+      <span class="legend-item">
+        <svg width="20" height="20">
+          <path d="M10,2 L18,18 L2,18 Z" fill="red" />
+        </svg>
+        Literal Node
+      </span>
+      <span class="legend-item">
+        <svg width="20" height="20" viewBox="-10 -10 20 20">
+          <path d="M0,-8 L8,0 L0,8 L-8,0 Z" fill="orange" />
+        </svg>
+        Map Node
+      </span>
+    </div>
+
+    <!-- ABAC button -->
+    <button id="show-abac-btn">Show ABAC Rules</button>
+
+    <svg id="tree"></svg>
+  </div>
+</div>
+
+<!-- Node Modal -->
+<div id="nodeModal" class="modal">
+  <div class="modal-content">
+    <span class="close" id="closeNodeModal">&times;</span>
+    <pre id="modalContent"></pre>
+  </div>
+</div>
+
+<!-- ABAC Modal -->
+<div id="abacModal" class="modal">
+  <div class="modal-content">
+    <span class="close" id="closeAbacModal">&times;</span>
+    <h2>ABAC Rules</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Subject</th>
+          <th>Action</th>
+          <th>Resource</th>
+          <th>Condition</th>
+        </tr>
+      </thead>
+      <tbody id="abacTableBody">
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+  let currentCRDT = null;
+
+  const dropArea = document.getElementById("drop-area");
+  const svg = d3.select("#tree");
+
+  const nodeModal = document.getElementById("nodeModal");
+  const modalContent = document.getElementById("modalContent");
+  const closeNodeModal = document.getElementById("closeNodeModal");
+
+  const abacModal = document.getElementById("abacModal");
+  const abacTableBody = document.getElementById("abacTableBody");
+  const closeAbacModal = document.getElementById("closeAbacModal");
+
+  const showAbacButton = document.getElementById("show-abac-btn");
+
+  closeNodeModal.onclick = () => nodeModal.style.display = "none";
+  closeAbacModal.onclick = () => abacModal.style.display = "none";
+
+  window.onclick = event => {
+    if (event.target === nodeModal) nodeModal.style.display = "none";
+    if (event.target === abacModal) abacModal.style.display = "none";
+  };
+
+  // Show ABAC button logic
+  showAbacButton.onclick = function() {
+    if (!currentCRDT || !currentCRDT.abac || !currentCRDT.abac.rules) {
+      alert("No ABAC policy found in the current CRDT.");
+      return;
+    }
+
+    // Clear table
+    abacTableBody.innerHTML = "";
+
+    const rules = currentCRDT.abac.rules;
+
+    for (const subject in rules) {
+      const actions = rules[subject];
+      for (const action in actions) {
+        const resources = actions[action];
+        for (const resource in resources) {
+          const condition = JSON.stringify(resources[resource]);
+          const row = abacTableBody.insertRow();
+          row.insertCell(0).innerText = subject;
+          row.insertCell(1).innerText = action;
+          row.insertCell(2).innerText = resource;
+          row.insertCell(3).innerText = condition;
+        }
+      }
+    }
+
+    abacModal.style.display = "block";
+  };
+
+  // Build the tree hierarchy
+  function buildTree(nodesMap, rootId) {
+    const nodeMap = {}, childrenMap = {};
+    for (const [id, node] of Object.entries(nodesMap)) {
+      nodeMap[id] = { id, ...node };
+      childrenMap[id] = [];
+    }
+    for (const node of Object.values(nodeMap)) {
+      for (const edge of node.edges || []) {
+        const child = nodeMap[edge.to];
+        if (child) {
+          child._edgeLabel = edge.label;
+          child._lseq = (edge.lseqposition || []).join(",");
+          childrenMap[edge.from].push(child);
+          child.parent = nodeMap[edge.from];
+        }
+      }
+    }
+    const root = nodeMap[rootId];
+    function toHierarchy(d) {
+      const children = childrenMap[d.id] || [];
+      return {
+        data: d,
+        children: children.map(toHierarchy)
+      };
+    }
+    return toHierarchy(root);
+  }
+
+  // Visualize CRDT
+  function visualizeCRDT(crdt) {
+    svg.selectAll("*").remove();
+    const rootId = crdt.root;
+    const treeData = buildTree(crdt.nodes, rootId);
+
+    const width = svg.node().getBoundingClientRect().width;
+    const height = svg.node().getBoundingClientRect().height;
+    const margin = { top: 50 };
+
+    const root = d3.hierarchy(treeData);
+    const treeLayout = d3.tree().nodeSize([160, 160]);
+    treeLayout(root);
+
+    const xValues = root.descendants().map(d => d.x);
+    const minX = Math.min(...xValues);
+    const maxX = Math.max(...xValues);
+
+    const g = svg.append("g")
+      .attr("transform", `translate(${width / 2 - (minX + maxX) / 2}, ${margin.top})`);
+
+    // Add zoom & pan behavior!
+    svg.call(d3.zoom().on("zoom", (event) => {
+      g.attr("transform", event.transform);
+    }));
+
+    const links = g.selectAll(".link")
+      .data(root.links())
+      .enter();
+
+    links.append("path")
+      .attr("fill", "none")
+      .attr("stroke", "#999")
+      .attr("stroke-width", 1.5)
+      .attr("d", d => `
+        M${d.source.x},${d.source.y}
+        C${d.source.x},${(d.source.y + d.target.y) / 2}
+        ${d.target.x},${(d.source.y + d.target.y) / 2}
+        ${d.target.x},${d.target.y}
+      `);
+
+    links.append("text")
+      .attr("x", d => (d.source.x + d.target.x) / 2)
+      .attr("y", d => (d.source.y + d.target.y) / 2 - 5)
+      .attr("text-anchor", "middle")
+      .attr("font-size", "10px")
+      .attr("fill", "#555")
+      .text(d => {
+        const parent = d.source.data.data;
+        const child = d.target.data.data;
+        const edge = parent.edges?.find(e => e.to === child.id);
+        if (!edge) return "";
+        if (edge.label) return edge.label;
+        if (edge.lseqposition?.length) return `[${edge.lseqposition.join(",")}]`;
+        return "";
+      });
+
+    const node = g.selectAll(".node")
+      .data(root.descendants())
+      .enter().append("g")
+      .attr("class", "node")
+      .attr("transform", d => `translate(${d.x},${d.y})`)
+      .on("click", (event, d) => {
+        // Prepare clean data without parent reference
+        const nodeData = { ...d.data.data };
+        delete nodeData.parent;
+
+        // Show modal
+        modalContent.textContent = JSON.stringify(nodeData, null, 2);
+        nodeModal.style.display = "block";
+      });
+
+    node.each(function(d) {
+      const n = d.data.data;
+      const shape = d3.select(this);
+      if (n.isliteral) {
+        shape.append("path")
+          .attr("d", d3.symbol().type(d3.symbolTriangle).size(800))
+          .attr("fill", "red");
+        shape.append("text")
+          .text(String(n.litteralValue))
+          .attr("y", 25)
+          .attr("text-anchor", "middle")
+          .style("font-size", "10px")
+          .style("fill", "#222");
+      } else if (n.ismap) {
+        shape.append("path")
+          .attr("d", d3.symbol().type(d3.symbolDiamond).size(800))
+          .attr("fill", "orange");
+      } else if (n.isarray) {
+        shape.append("rect")
+          .attr("x", -15).attr("y", -15).attr("width", 30).attr("height", 30)
+          .attr("fill", "green");
+      } else {
+        shape.append("circle")
+          .attr("r", 20)
+          .attr("fill", "#1f77b4");
+      }
+    });
+  }
+
+  dropArea.addEventListener("dragover", e => {
+    e.preventDefault();
+    dropArea.style.background = "#eee";
+  });
+
+  dropArea.addEventListener("dragleave", () => {
+    dropArea.style.background = "";
+  });
+
+  dropArea.addEventListener("drop", e => {
+    e.preventDefault();
+    dropArea.style.background = "";
+    const file = e.dataTransfer.files[0];
+    if (!file.name.endsWith(".json")) {
+      alert("Please drop a .json file");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = event => {
+      try {
+        const crdt = JSON.parse(event.target.result);
+        currentCRDT = crdt; // Save globally
+        visualizeCRDT(crdt);
+      } catch (err) {
+        alert("Invalid JSON format");
+      }
+    };
+    reader.readAsText(file);
+  });
+</script>
+
+</body>
+</html>

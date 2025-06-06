@@ -1,9 +1,9 @@
 all: build
 .PHONY: all build
 
-BINARY_NAME := helloworld
-BUILD_IMAGE ?= test/helloworld
-PUSH_IMAGE ?= test/helloworld:v1.0.0
+BINARY_NAME := synctree 
+BUILD_IMAGE ?= synctree
+PUSH_IMAGE ?= synctree:v0.0.1
 
 VERSION := $(shell git rev-parse --short HEAD)
 BUILDTIME := $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')

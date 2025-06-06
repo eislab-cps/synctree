@@ -16,9 +16,9 @@ func init() {
 }
 
 var rootCmd = &cobra.Command{
-	Use:   "helloworld",
-	Short: "helloworld",
-	Long:  "helloworld",
+	Use:   "synctree",
+	Short: "synctree",
+	Long:  "synctree",
 }
 
 func Execute() {

@@ -1,7 +1,8 @@
 package cli
 
 import (
-	"github.com/eislab-cps/synctree/pkg/helloworld"
+	"fmt"
+
 	"github.com/spf13/cobra"
 )
 
@@ -10,11 +11,10 @@ func init() {
 }
 
 var TalkCmd = &cobra.Command{
-	Use:   "talk",
-	Short: "Say something",
-	Long:  "Say something",
+	Use:   "import",
+	Short: "Import a JSON file",
+	Long:  "Import a JSON file",
 	Run: func(cmd *cobra.Command, args []string) {
-		hellworld := helloworld.NewHelloWorld()
-		hellworld.Talk()
+		fmt.Println("Importing a JSON file...")
 	},
 }
