@@ -12,6 +12,8 @@
 - **Strong eventual consistency:** All replicas converge automatically
 - **Offline-capable:** Changes can be made locally and merged later
 - **Deterministic merge:** The merge process always produces the same result
+- **Self-sovereign identity management & self-verifiability**
+- **Self-sovereign identity & self-verifiability* The entire CRDT tree — including identities, structure, and data — is cryptographically self-verifiable and controlled by the users, with no reliance on centralized authorities.
 
 **Key Features:**
 - **Serialization** to/from **JSON**
