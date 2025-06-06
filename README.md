@@ -32,9 +32,9 @@ CRDTs guarantee that all replicas will eventually **converge to the same state**
 - **State Reconsolidation in Edge-Cloud Computing Continuums**  
   Reconciling state across distributed systems, such as Edge-Cloud Computing continuums
 - **Edge Computing on Satellites**
-- Offline-first: satellites and industrial systems often operate with intermittent or delayed connectivity — CRDTs enable safe local updates and later synchronization
+  Satellites and industrial systems often operate with intermittent or delayed connectivity — CRDTs enable safe local updates and later synchronization
 - **Digital Asset Management**  
-  E.g. **Digital Product Pass**, with fine-grained access control
+  E.g. **Digital Product Passport**, with fine-grained access control
 - **Decentralized Applications (DApps)**  
   Peer-to-peer Applications with conflict-free data structures
 - **Decentralized Service Registries**  
@@ -53,7 +53,3 @@ To use the viewer:
 
 
 ![CRDT Tree Viewer](./viewer.png)
-
-## CLI
-
-## Examples
