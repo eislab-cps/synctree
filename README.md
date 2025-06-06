@@ -22,7 +22,7 @@
 - **Per-node ABAC policy** with recursive inheritance
 - **Offline-capable & mergeable**: supports **merge** & **replay of deltas** of divergent replicas
 - **JSONPath support** Supports querying the CRDT tree using [JSONPath](https://datatracker.ietf.org/doc/html/draft-ietf-jsonpath-base) expressions
-- **Event-driven programming** Subscribe to changes in the CRDT tree and trigger actions when updates occur — enabling reactive applications and real-time integrations.
+- **Event-driven programming** Subscribe to changes in the CRDT tree and trigger actions when updates occur — enabling reactive applications and real-time integrations
 
 ## What is a CRDT?
 A [**CRDT** (Conflict-free Replicated Data Type)](https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type) is a data structure designed for distributed systems, allowing multiple replicas to be updated independently and concurrently without coordination.
