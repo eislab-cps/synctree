@@ -1,6 +1,6 @@
-# Introduction
-
 ![SyncTree logo](./logo.png)
+
+# Introduction
 
 **SyncTree** is a **CRDT-based tree** with built-in:
 
@@ -16,7 +16,7 @@
 - **Deterministic merge:** The merge process always produces the same result
 
 ## What is a CRDT?
-A **CRDT** (Conflict-free Replicated Data Type) is a data structure designed for **distributed systems** where multiple replicas may update concurrently — even **offline** — without coordination.
+A [**CRDT** (Conflict-free Replicated Data Type)](https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type) is a data structure designed for distributed systems, allowing multiple replicas to be updated independently and concurrently without coordination.
 
 CRDTs guarantee that all replicas will eventually **converge to the same state**, regardless of the order of updates or network delays.
 
@@ -31,13 +31,16 @@ CRDTs guarantee that all replicas will eventually **converge to the same state**
 ## Potential Applications
 - **Collaborative editing**  
   Real-time editing of documents, code, or data structures
-- **State reconsolidation**  
+- **State Reconsolidation**  
   Reconciling state across distributed systems, such as Edge-Cloud Computing continuums
+- Edge-Computing on Satellites** Offline-friendly → industrial environments often suffer from intermittent connectivity
+- **Edge Computing on Satellites**
+- Offline-first: satellites and industrial systems often operate with intermittent or delayed connectivity — CRDTs enable safe local updates and later synchronization.
 - **Digital Asset Management**  
   E.g. **Digital Product Pass**, with fine-grained access control
 - **Decentralized Applications (DApps)**  
   Peer-to-peer applications with conflict-free data structures
-- **Decentralized Service Mesh**  
-  Decentralized Service Registry in SOA or Microservices architectures (e.g. Eclipse Arrowhead)
+- **Decentralized Service Registries**  
+  Decentralized Service Registry in SOA or Microservices architectures (e.g. [Eclipse Arrowhead](https://arrowhead.eu/eclipse-arrowhead-2))
 - **Agentic AI Systems**  
   AI agents with shared state and fine-grained access control
