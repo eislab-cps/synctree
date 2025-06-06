@@ -1,7 +1,6 @@
 ![SyncTree logo](./logo.png)
 
 # Introduction
-
 **SyncTree** is a **CRDT-based tree** with built-in:
 
 - **Conflict-free merge** across distributed replicas  
@@ -10,7 +9,7 @@
 
 **Key Properties:**
 - **Conflict-free:** No need for manual conflict resolution
-- **Eventually consistent:** All replicas converge automatically
+- **Strong wventually consistency:** All replicas converge automatically
 - **Offline-capable:** Changes can be made locally and merged later
 - **Deterministic merge:** The merge process always produces the same result
 
@@ -30,18 +29,31 @@ CRDTs guarantee that all replicas will eventually **converge to the same state**
 ## Potential Applications
 - **Collaborative editing**  
   Real-time editing of documents, code, or data structures
-- **State Reconsolidation**  
+- **State Reconsolidation in Edge-Cloud Computing Continuums**  
   Reconciling state across distributed systems, such as Edge-Cloud Computing continuums
-- Edge-Computing on Satellites** Offline-friendly → industrial environments often suffer from intermittent connectivity
 - **Edge Computing on Satellites**
-- Offline-first: satellites and industrial systems often operate with intermittent or delayed connectivity — CRDTs enable safe local updates and later synchronization.
+- Offline-first: satellites and industrial systems often operate with intermittent or delayed connectivity — CRDTs enable safe local updates and later synchronization
 - **Digital Asset Management**  
   E.g. **Digital Product Pass**, with fine-grained access control
 - **Decentralized Applications (DApps)**  
-  Peer-to-peer applications with conflict-free data structures
+  Peer-to-peer Applications with conflict-free data structures
 - **Decentralized Service Registries**  
   Decentralized Service Registry in SOA or Microservices architectures (e.g. [Eclipse Arrowhead](https://arrowhead.eu/eclipse-arrowhead-2))
 - **Agentic AI Systems**  
   AI agents with shared state and fine-grained access control
 
-# 
+# Getting started
+## CRDT Viwer
+**CRDT Viewer** is a tool for visualizing CRDT tree structures.  
+
+To use the viewer:
+
+1. Open the `viewer.html` file located in the `viewer` directory.
+2. Drag and drop a CRDT file (e.g., `example_crdt.json`) into the browser window.
+
+
+![CRDT Tree Viewer](./viewer.png)
+
+## CLI
+
+## Examples
