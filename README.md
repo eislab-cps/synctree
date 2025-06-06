@@ -21,7 +21,7 @@
 - **Built-in cryptographic signatures** (ECDSA / SHA3)
 - **Per-node ABAC policy** with recursive inheritance
 - **Offline-capable & mergeable**: supports **merge** & **replay of deltas** of divergent replicas
-- **JSONPath support** Supports querying the CRDT tree using [JSONPath](https://datatracker.ietf.org/doc/html/draft-ietf-jsonpath-base) expressions (based on [IETF JSONPath draft RFC](https://datatracker.ietf.org/doc/html/draft-ietf-jsonpath-base)).
+- **JSONPath support** Supports querying the CRDT tree using [JSONPath](https://datatracker.ietf.org/doc/html/draft-ietf-jsonpath-base) expressions
 - **Event-driven programming** Subscribe to changes in the CRDT tree and trigger actions when updates occur — enabling reactive applications and real-time integrations.
 
 ## What is a CRDT?
