@@ -28,6 +28,10 @@ A [**CRDT** (Conflict-free Replicated Data Type)](https://en.wikipedia.org/wiki/
 
 CRDTs guarantee that all replicas will eventually **converge to the same state**, regardless of the order of updates or network delays.
 
+The CRDT in SyncTree is based on the following algorithms:
+- **Last-Writer-Wins Register** — implemented using vector clocks  
+- **LSEQ** — To handle merge of ordered sequences, originally designed for efficient collaborative editing. Reference: [LSEQ — An adaptive structure for sequences in distributed collaborative editing](https://hal.inria.fr/hal-00921633/document)_
+
 ## Potential Applications
 - **Collaborative editing**  
   Real-time editing of documents, code, or data structures
