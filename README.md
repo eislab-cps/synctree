@@ -35,81 +35,55 @@ The CRDT in SyncTree is based on the following algorithms:
 
 ## Potential Applications
 - **Collaborative editing**  
-  Real-time editing of documents, code, or data structures
+  Real-time editing of documents, code, or data structures.
 - **State Reconsolidation in Edge-Cloud Computing Continuums**  
-  Reconciling state across distributed systems, such as Edge-Cloud Computing continuums
+  Reconciling state across distributed systems, such as Edge-Cloud Computing continuums.
 - **Edge Computing on Satellites**
-  Satellites and industrial systems often operate with intermittent or delayed connectivity — CRDTs enable safe local updates and later synchronization
+  Satellites and industrial systems often operate with intermittent or delayed connectivity — CRDTs enable safe local updates and later synchronization.
 - **Digital Asset Management**  
-  E.g. **Digital Product Passport**, with fine-grained access control
+  E.g. **Digital Product Passport**, with fine-grained access control.
 - **Decentralized Applications (DApps)**  
-  Peer-to-peer Applications with conflict-free data structures
+  Peer-to-peer Applications with conflict-free data structures.
 - **Decentralized Service Registries**  
-  Decentralized Service Registry in SOA or Microservices architectures (e.g. [Eclipse Arrowhead](https://arrowhead.eu/eclipse-arrowhead-2))
+  Decentralized Service Registry in SOA or Microservices architectures (e.g. [Eclipse Arrowhead](https://arrowhead.eu/eclipse-arrowhead-2)).
 - **Agentic AI Systems**  
-  AI agents with shared state and fine-grained access control
+  AI agents with shared state and fine-grained access control.
 
 # Getting started
-## Generate a ECDSA Private key
+## Web3 Identity in SyncTree
+In **SyncTree**, an **identity** is based on **ECDSA cryptographic keys** — the same primitives used in many **Web3 ecosystems** (e.g. Ethereum, Polkadot, Cosmos).
+
+- The **private key** is a securely generated ECDSA key.
+- The **identity (ID)** is simply the **SHA3 hash** of the public key (derived from the private key).
+
+This means:
+Your **identity is self-sovereign** — owned and controlled by you.  
+It is **portable** — can be used across decentralized applications (DApps), blockchains, and SyncTree instances.  
+It is **verifiable** — other peers can verify your node signatures using your public key.  
+It requires **no centralized authority** — no login, no passwords, no central server.  
+
+In short — **SyncTree uses Web3-style identities** to ensure that:
+- Every change to the tree is **signed** by a user identity.
+- The entire tree is **cryptographically verifiable** (who made which change, when, and whether it is authorized).
+- Fine-grained **access control (ABAC)** can be enforced per node, based on identities.
+
+### Generate a ECDSA Private key
+```console
 synctree key generate
+```
+
+```console
 INFO[0000] Generated new private key                     Id=aad2acc278f5ae57515b188ac3185b1da6153f177c7ee892cb18b6c2b7f802e4 PrvKey=bcbf7cd574b226ac1fa3e69591b11ab9d449d6e3e6446d452698b00d4af884e5
+```
 
 ## Import JSON to CRDT SyncTree
 ```console
 synctree import --json ./viewer/example.json --crdt tree.json --prvkey bcbf7cd574b226ac1fa3e69591b11ab9d449d6e3e6446d452698b00d4af884e5 --print
 ```
 
-```console
-INFO[0000] Importing JSON file to CRDT SyncTree          crdt=tree.json json=./viewer/example.json
-INFO[0000] {
-        "uid": "user_1",
-        "name": "Alice",
-        "friends": [
-                {
-                        "uid": "user_2",
-                        "name": "Bob"
-                },
-                {
-                        "uid": "user_3",
-                        "name": "Charlie",
-                        "friends": [
-                                {
-                                        "uid": "user_4",
-                                        "name": "Dana"
-                                }
-                        ]
-                }
-        ]
-}
-```
-
 ## Export back to JSON
 ```console
 synctree export --json ./j1.json --crdt tree.json --prvkey bcbf7cd574b226ac1fa3e69591b11ab9d449d6e3e6446d452698b00d4af884e5 --print
-```
-
-```console
-INFO[0000] Exporting CRDT SyncTree to JSON               crdt=tree.json json=./j1.json
-INFO[0000] {
-  "friends": [
-    {
-      "name": "Bob",
-      "uid": "user_2"
-    },
-    {
-      "friends": [
-        {
-          "uid": "user_4",
-          "name": "Dana"
-        }
-      ],
-      "name": "Charlie",
-      "uid": "user_3"
-    }
-  ],
-  "name": "Alice",
-  "uid": "user_1"
-}
 ```
 
 ## CRDT Viwer
