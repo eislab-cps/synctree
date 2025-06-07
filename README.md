@@ -1,5 +1,8 @@
 ![SyncTree logo](./logo.png)
 
+[![codecov](https://codecov.io/gh/eislab-cps/synctree/branch/main/graph/badge.svg)](https://codecov.io/gh/eislab-cps/synctree)
+[![Go](https://github.com/eislab-cps/synctree/actions/workflows/go.yml/badge.svg)](https://github.com/eislab-cps/synctree/actions/workflows/go.yml)
+
 # Introduction
 **SyncTree** is a **CRDT-based tree** with built-in:
 
