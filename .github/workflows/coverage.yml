@@ -20,7 +20,7 @@ jobs:
         go-version: '1.22'  # or whatever version you use
 
     - name: Generate coverage using Makefile
-      run: make coverage
+      run: go test -race -coverprofile=coverage.txt -covermode=atomic ./pkg/crdt ./internal/crypto
 
     - name: Upload coverage reports to Codecov
       uses: codecov/codecov-action@v5
