@@ -14,7 +14,11 @@ var PrvKey string
 var JSONFile string
 var CRDTFile string
 var PrintJSON bool
-var JSONPointer string
+var NodePath string
+var LiteralValue string
+var CRDTFileIn1 string
+var CRDTFileIn2 string
+var CRDTFileOut string
 
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&Verbose, "verbose", "v", false, "verbose output")

@@ -89,6 +89,21 @@ synctree import --json ./viewer/example.json --crdt tree.json --prvkey bcbf7cd57
 synctree export --json ./j1.json --crdt tree.json --prvkey bcbf7cd574b226ac1fa3e69591b11ab9d449d6e3e6446d452698b00d4af884e5 --print
 ```
 
+## Print CRDT Synctree as JSON 
+```console
+synctree print --crdt tree.json --prvkey bcbf7cd574b226ac1fa3e69591b11ab9d449d6e3e6446d452698b00d4af884e5
+```
+
+## Set Literal values
+```console
+synctree set-literal --crdt tree.json --path /friends/0/name --value Johan2 --prvkey 70268194983ca6e44ef03c8ce5613bd4985816b4d185447c3589699ccd43f71d --print
+```
+
+## Merge two CRDT Synctrees
+```console
+synctree merge --crdt1 tree.json --crdt2 tree.json --crdtout tree2.json --prvkey 70268194983ca6e44ef03c8ce5613bd4985816b4d185447c3589699ccd43f71d --print
+```
+
 ## CRDT Viwer
 **CRDT Viewer** is a tool for visualizing CRDT tree structures.  
 

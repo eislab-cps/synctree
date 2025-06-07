@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"fmt"
 	"github.com/eislab-cps/synctree/pkg/crdt"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -10,6 +11,9 @@ import (
 func init() {
 	rootCmd.AddCommand(importCmd)
 	rootCmd.AddCommand(exportCmd)
+	rootCmd.AddCommand(setLiteralCmd)
+	rootCmd.AddCommand(mergeCmd)
+	rootCmd.AddCommand(printCmd)
 
 	importCmd.Flags().StringVarP(&PrvKey, "prvkey", "", "", "Private key")
 	importCmd.MarkFlagRequired("prvkey")
@@ -26,6 +30,31 @@ func init() {
 	exportCmd.Flags().StringVarP(&CRDTFile, "crdt", "", "", "File to store imported data")
 	exportCmd.MarkFlagRequired("crdt")
 	exportCmd.Flags().BoolVarP(&PrintJSON, "print", "p", false, "Print JSON to stdout")
+
+	setLiteralCmd.Flags().StringVarP(&PrvKey, "prvkey", "", "", "Private key")
+	setLiteralCmd.MarkFlagRequired("prvkey")
+	setLiteralCmd.Flags().StringVarP(&CRDTFile, "crdt", "", "", "File to store imported data")
+	setLiteralCmd.MarkFlagRequired("crdt")
+	setLiteralCmd.Flags().StringVarP(&NodePath, "path", "", "", "Path to the node in the CRDT SyncTree")
+	setLiteralCmd.MarkFlagRequired("path")
+	setLiteralCmd.Flags().StringVarP(&LiteralValue, "value", "", "", "String literal value to set")
+	setLiteralCmd.MarkFlagRequired("value")
+	setLiteralCmd.Flags().BoolVarP(&PrintJSON, "print", "p", false, "Print JSON to stdout")
+
+	mergeCmd.Flags().StringVarP(&PrvKey, "prvkey", "", "", "Private key")
+	mergeCmd.MarkFlagRequired("prvkey")
+	mergeCmd.Flags().StringVarP(&CRDTFileIn1, "crdt1", "", "", "First CRDT file to merge")
+	mergeCmd.MarkFlagRequired("crdt1")
+	mergeCmd.Flags().StringVarP(&CRDTFileIn2, "crdt2", "", "", "Second CRDT file to merge")
+	mergeCmd.MarkFlagRequired("crdt2")
+	mergeCmd.Flags().StringVarP(&CRDTFileOut, "crdtout", "", "", "Output CRDT file after merge")
+	mergeCmd.MarkFlagRequired("crdtout")
+	mergeCmd.Flags().BoolVarP(&PrintJSON, "print", "p", false, "Print JSON to stdout")
+
+	printCmd.Flags().StringVarP(&PrvKey, "prvkey", "", "", "Private key")
+	printCmd.MarkFlagRequired("prvkey")
+	printCmd.Flags().StringVarP(&CRDTFile, "crdt", "", "", "File to store imported data")
+	printCmd.MarkFlagRequired("crdt")
 }
 
 var importCmd = &cobra.Command{
@@ -86,5 +115,117 @@ var exportCmd = &cobra.Command{
 		if PrintJSON {
 			log.Info(string(jsonData))
 		}
+	},
+}
+
+var setLiteralCmd = &cobra.Command{
+	Use:   "set-literal",
+	Short: "Set a string literal value in CRDT SyncTree",
+	Long:  "Set a string literal value in the CRDT SyncTree",
+	Run: func(cmd *cobra.Command, args []string) {
+		log.WithFields(log.Fields{
+			"json":  JSONFile,
+			"crdt":  CRDTFile,
+			"path":  NodePath,
+			"value": LiteralValue,
+		}).Info("Exporting CRDT SyncTree to JSON")
+
+		c, err := crdt.NewSecureTree(PrvKey)
+		CheckError(err)
+
+		crdtData, err := os.ReadFile(CRDTFile)
+		CheckError(err)
+
+		err = c.Load(crdtData)
+		CheckError(err)
+
+		node, err := c.GetNodeByPath(NodePath)
+		CheckError(err)
+
+		err = node.SetLiteral(LiteralValue, PrvKey)
+		CheckError(err)
+
+		savedData, err := c.Save()
+		CheckError(err)
+		err = os.WriteFile(CRDTFile, savedData, 0644)
+		CheckError(err)
+
+		jsonData, err := c.ExportJSON()
+		CheckError(err)
+		if PrintJSON {
+			log.Info(string(jsonData))
+		}
+	},
+}
+
+var mergeCmd = &cobra.Command{
+	Use:   "merge",
+	Short: "Merge two CRDT SyncTree files",
+	Long:  "Merge two CRDT SyncTree files into one",
+	Run: func(cmd *cobra.Command, args []string) {
+		log.WithFields(log.Fields{
+			"crdt1":   CRDTFileIn1,
+			"crdt2":   CRDTFileIn2,
+			"crdtout": CRDTFileOut,
+		}).Info("Merging two CRDT SyncTree files")
+
+		fmt.Println("XXXXXXXXXXXXXXXX", PrvKey)
+
+		c1, err := crdt.NewSecureTree(PrvKey)
+		CheckError(err)
+
+		data1, err := os.ReadFile(CRDTFileIn1)
+		CheckError(err)
+
+		err = c1.Load(data1)
+		CheckError(err)
+
+		c2, err := crdt.NewSecureTree(PrvKey)
+		CheckError(err)
+
+		data2, err := os.ReadFile(CRDTFileIn2)
+		CheckError(err)
+
+		err = c2.Load(data2)
+		CheckError(err)
+
+		err = c1.Merge(c2, PrvKey)
+		CheckError(err)
+
+		savedData, err := c1.Save()
+		CheckError(err)
+
+		err = os.WriteFile(CRDTFileOut, savedData, 0644)
+		CheckError(err)
+
+		if PrintJSON {
+			jsonData, err := c1.ExportJSON()
+			CheckError(err)
+			log.Info(string(jsonData))
+		}
+	},
+}
+
+var printCmd = &cobra.Command{
+	Use:   "print",
+	Short: "Print CRDT SyncTree as JSON",
+	Long:  "Print the current state of the CRDT SyncTree as JSON",
+	Run: func(cmd *cobra.Command, args []string) {
+		log.WithFields(log.Fields{
+			"crdt": CRDTFile,
+		}).Info("Exporting CRDT SyncTree to JSON")
+
+		c, err := crdt.NewSecureTree(PrvKey)
+		CheckError(err)
+
+		crdtData, err := os.ReadFile(CRDTFile)
+		CheckError(err)
+
+		err = c.Load(crdtData)
+		CheckError(err)
+
+		jsonData, err := c.ExportJSON()
+		CheckError(err)
+		log.Info(string(jsonData))
 	},
 }
