@@ -10,6 +10,11 @@ import (
 const TimeLayout = "2006-01-02 15:04:05"
 
 var Verbose bool
+var PrvKey string
+var JSONFile string
+var CRDTFile string
+var PrintJSON bool
+var JSONPointer string
 
 func init() {
 	rootCmd.PersistentFlags().BoolVarP(&Verbose, "verbose", "v", false, "verbose output")

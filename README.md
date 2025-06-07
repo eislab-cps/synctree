@@ -4,7 +4,7 @@
 **SyncTree** is a **CRDT-based tree** with built-in:
 
 - **Conflict-free merge** across distributed replicas  
-- **ECDSA crypto** for node signatures  
+- **ECDSA crypto** for node signatures and identities (Web3 identities) 
 - **ABAC (Attribute-Based Access Control)** for fine-grained permissions  
 
 **Key Properties:**
@@ -12,7 +12,7 @@
 - **Strong eventual consistency:** All replicas converge automatically
 - **Offline-capable:** Changes can be made locally and merged later
 - **Deterministic merge:** The merge process always produces the same result
-- **Self-sovereign identity & self-verifiability** The entire CRDT tree — including identities, structure, and data — is cryptographically self-verifiable and controlled by the users, with no reliance on centralized authorities
+- **Self-sovereign identity (Web3) & self-verifiability** The entire CRDT tree — including identities, structure, and data — is cryptographically self-verifiable and controlled by the users, with no reliance on centralized authorities
 
 **Key Features:**
 - **Serialization** to/from **JSON**
@@ -21,7 +21,7 @@
 - **Built-in cryptographic signatures** (ECDSA / SHA3)
 - **Per-node ABAC policy** with recursive inheritance
 - **Offline-capable & mergeable**: supports **merge** & **replay of deltas** of divergent replicas
-- **JSONPath support** Supports querying the CRDT tree using [JSONPath](https://datatracker.ietf.org/doc/html/draft-ietf-jsonpath-base) expressions
+- **JSON Pointer support** Supports querying the CRDT tree using JSON Pointers expressions [RFC 6901](https://datatracker.ietf.org/doc/html/rfc6901)
 - **Event-driven programming** Subscribe to changes in the CRDT tree and trigger actions when updates occur — enabling reactive applications and real-time integrations
 
 ## What is a CRDT?
@@ -50,6 +50,68 @@ The CRDT in SyncTree is based on the following algorithms:
   AI agents with shared state and fine-grained access control
 
 # Getting started
+## Generate a ECDSA Private key
+synctree key generate
+INFO[0000] Generated new private key                     Id=aad2acc278f5ae57515b188ac3185b1da6153f177c7ee892cb18b6c2b7f802e4 PrvKey=bcbf7cd574b226ac1fa3e69591b11ab9d449d6e3e6446d452698b00d4af884e5
+
+## Import JSON to CRDT SyncTree
+```console
+synctree import --json ./viewer/example.json --crdt tree.json --prvkey bcbf7cd574b226ac1fa3e69591b11ab9d449d6e3e6446d452698b00d4af884e5 --print
+```
+
+```console
+INFO[0000] Importing JSON file to CRDT SyncTree          crdt=tree.json json=./viewer/example.json
+INFO[0000] {
+        "uid": "user_1",
+        "name": "Alice",
+        "friends": [
+                {
+                        "uid": "user_2",
+                        "name": "Bob"
+                },
+                {
+                        "uid": "user_3",
+                        "name": "Charlie",
+                        "friends": [
+                                {
+                                        "uid": "user_4",
+                                        "name": "Dana"
+                                }
+                        ]
+                }
+        ]
+}
+```
+
+## Export back to JSON
+```console
+synctree export --json ./j1.json --crdt tree.json --prvkey bcbf7cd574b226ac1fa3e69591b11ab9d449d6e3e6446d452698b00d4af884e5 --print
+```
+
+```console
+INFO[0000] Exporting CRDT SyncTree to JSON               crdt=tree.json json=./j1.json
+INFO[0000] {
+  "friends": [
+    {
+      "name": "Bob",
+      "uid": "user_2"
+    },
+    {
+      "friends": [
+        {
+          "uid": "user_4",
+          "name": "Dana"
+        }
+      ],
+      "name": "Charlie",
+      "uid": "user_3"
+    }
+  ],
+  "name": "Alice",
+  "uid": "user_1"
+}
+```
+
 ## CRDT Viwer
 **CRDT Viewer** is a tool for visualizing CRDT tree structures.  
 
@@ -57,6 +119,5 @@ To use the viewer:
 
 1. Open the `viewer.html` file located in the `viewer` directory.
 2. Drag and drop a CRDT file (e.g., `example_crdt.json`) into the browser window.
-
 
 ![CRDT Tree Viewer](./viewer.png)
