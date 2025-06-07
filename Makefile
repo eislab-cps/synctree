@@ -24,7 +24,6 @@ push:
 
 coverage:
 	./buildtools/coverage.sh
-	./buildtools/codecov
 
 test: 
 	@cd pkg/crdt; go test -v --race
