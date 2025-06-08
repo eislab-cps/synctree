@@ -30,14 +30,14 @@
   Reconciling state across distributed systems, such as Edge-Cloud Computing continuums.
 - **IoT Automation** Providing a verifiable shared state for smart home and IoT environments — where the SyncTree represents the desired state of devices (lighting, HVAC, alarms, appliances), and IoT devices subscribe to state changes and autonomously act upon them. Enables offline-capable operation, automatic state reconciliation, and auditable changes across heterogeneous IoT networks without requiring centralized cloud control.
 - **Edge Computing on Satellites and Space Systems**  
-  Satellites and industrial systems often operate with **intermittent or delayed connectivity**. SyncTree’s CRDT-based model enables safe **local updates** and **later synchronization** across distributed ground stations and space assets. Example use cases include **configuring AI processing pipelines**, **managing software configurations**, **parameter tuning**, and **coordinating state across constellations** — with full **auditability**, **conflict-free merging**, and **offline-capable operation**.
+  Satellites and industrial systems often operate with intermittent or delayed connectivity. SyncTree’s CRDT-based model enables local updates and synchronization across distributed ground stations and space assets. Example use cases include configuring AI processing pipelines, managing software configurations, parameter tuning, etc.
 - **Digital Asset Management**  
   Managing Digital Product Passports and other digital representations of physical assets — with fine-grained access control, verifiable provenance, and decentralized state synchronization across supply chains and stakeholders.
 - **Decentralized Service Registries**  
   Enabling decentralized Service Registries and orchestration layers for distributed SOA or microservice-based architectures (e.g. [Eclipse Arrowhead](https://arrowhead.eu/eclipse-arrowhead-2)).
 - **Agentic and Autonomous AI Systems**  
   Supporting distributed agent-based AI systems with shared, verifiable state and fine-grained access control — enabling collaborative and adaptive AI at the edge and in dynamic environments.
-- **Distributed Medical Records and Multi-Actor Care Coordination** Enabling mergeable, trust-controlled medical records shared across multiple healthcare providers, home care services, and patients, enabling verifiable provenance of clinical actions, and offline-first operation for remote and underserved regions. 
+- **Distributed Medical Records** Enabling mergeable, trust-controlled medical records shared across multiple healthcare providers, home care services, and patients, enabling verifiable provenance of clinical actions, and offline-first operation for remote and underserved regions. 
 - **Military and Tactical Edge Applications** Enabling decentralized orchestration of AI-enabled platforms (UAVs, UGVs, autonomous sensors), secure and verifiable mission data sharing, and resilient command and control across highly dynamic and partitioned battlefield networks.
 
 # Theory
@@ -88,14 +88,12 @@ This forms an **[implicit certificate](https://en.wikipedia.org/wiki/Implicit_ce
 **SyncTree** implements a **decentralized, self-sovereign identity model** inspired by **[W3C Decentralized Identifiers (DIDs)](https://www.w3.org/TR/did-core/)**.
 
 Each identity is derived from an **ECDSA keypair**:
-
 - The `ownerID` is the **SHA3 hash** of the recovered public key.
 - All changes to the tree are **signed**.
 - Per-node **ABAC policies** are enforced based on these identities.
 - The tree is fully **cryptographically verifiable**.
 
 Unlike full W3C DID:
-
 - SyncTree does not use `"did:"` URIs or DID Documents.
 - No external **DID resolution** is required — identities are **embedded** and self-contained.
 - Verification is purely **data-driven** — no dependency on external registries.
@@ -116,6 +114,8 @@ To synchronize a node in **SyncTree**, the following criteria must be met:
 7. **Special case:** If conflicting nodes are of different types (e.g. one is Map, another is Literal), convert both to **Array** form and merge:
     - Combine the conflicting values into an Array.
     - Sort the Array entries using `ownerID` as a deterministic ordering key across replicas.
+
+A drawback of this approach is that conflicting changes may be overwritten in some cases (as is typical with LWW strategies). A potential future enhancement is to append conflicting versions to the tree, allowing users or applications to manually review and resolve conflicts where necessary.
 
 ## Supported Tree Operations
 ### Node Operations
