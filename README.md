@@ -171,32 +171,40 @@ synctree key generate
 ```
 
 ```console
-INFO[0000] Generated new private key                     Id=aad2acc278f5ae57515b188ac3185b1da6153f177c7ee892cb18b6c2b7f802e4 PrvKey=bcbf7cd574b226ac1fa3e69591b11ab9d449d6e3e6446d452698b00d4af884e5
+INFO[0000] Generated new private key   
+Id=cd2f6d26b2ad284c8319b06c2e175f4cf2942c49cff2ae5a3f926b7541a8e92f
+PrvKey=b24b6cf725a6d0e12955ff35a470c823eaac6dbbe0feb5503a097ed5baca5328
 ```
 
 ### Import JSON to CRDT SyncTree
 ```console
-synctree import --json ./viewer/example.json --crdt tree.json --prvkey bcbf7cd574b226ac1fa3e69591b11ab9d449d6e3e6446d452698b00d4af884e5 --print
+synctree import --json ./viewer/example.json --crdt tree.json --prvkey  b24b6cf725a6d0e12955ff35a470c823eaac6dbbe0feb5503a097ed5baca5328 --print
 ```
 
 ### Export back to JSON
 ```console
-synctree export --json ./j1.json --crdt tree.json --prvkey bcbf7cd574b226ac1fa3e69591b11ab9d449d6e3e6446d452698b00d4af884e5 --print
+synctree export --json ./j1.json --crdt tree.json --prvkey b24b6cf725a6d0e12955ff35a470c823eaac6dbbe0feb5503a097ed5baca5328 --print
 ```
 
-### Print CRDT Synctree as JSON 
+### Print CRDT SyncTree as JSON 
 ```console
-synctree print --crdt tree.json --prvkey bcbf7cd574b226ac1fa3e69591b11ab9d449d6e3e6446d452698b00d4af884e5
+synctree print --crdt tree.json --prvkey b24b6cf725a6d0e12955ff35a470c823eaac6dbbe0feb5503a097ed5baca5328
 ```
 
 ### Set Literal values
 ```console
-synctree set-literal --crdt tree.json --path /friends/0/name --value Johan2 --prvkey 70268194983ca6e44ef03c8ce5613bd4985816b4d185447c3589699ccd43f71d --print
+cp tree.json tree2.json
+synctree set-literal --crdt tree2.json --path /friends/0/name --value Johan2 --prvkey b24b6cf725a6d0e12955ff35a470c823eaac6dbbe0feb5503a097ed5baca5328 --print
 ```
 
-### Merge two CRDT Synctrees
+### Merge two CRDT SyncTrees
 ```console
-synctree merge --crdt1 tree.json --crdt2 tree.json --crdtout tree2.json --prvkey 70268194983ca6e44ef03c8ce5613bd4985816b4d185447c3589699ccd43f71d --print
+synctree merge --crdt1 tree.json --crdt2 tree2.json --crdtout treemerged.json --prvkey  b24b6cf725a6d0e12955ff35a470c823eaac6dbbe0feb5503a097ed5baca5328 --print
+```
+
+### Verify CRDT SyncTree
+```console
+synctree verify --crdt tree.json --prvkey  b24b6cf725a6d0e12955ff35a470c823eaac6dbbe0feb5503a097ed5baca5328 
 ```
 
 ### CRDT Viwer
