@@ -17,7 +17,7 @@
 **Key Features:**
 - **Serialization** to/from JSON.
 - **Tree-structured CRDT:** Nodes can be `Map`, `Array`, or `Literal`.
-- **Built-in cryptographic signatures:** Based on **[ECDSA](https://en.wikipedia.org/wiki/Elliptic_Curve_Digital_Signature_Algorithm)** and **[SHA-3](https://en.wikipedia.org/wiki/SHA-3)**, using an **implicit certificate** approach (self-contained identity binding).
+- **Built-in cryptographic signatures:** Based on [ECDSA](https://en.wikipedia.org/wiki/Elliptic_Curve_Digital_Signature_Algorithm) and [SHA-3](https://en.wikipedia.org/wiki/SHA-3), using an **implicit certificate** approach (self-contained identity binding).
 - **Per-node ABAC policies** with recursive inheritance.
 - **Offline-capable & mergeable:** Supports merge and replay of deltas from divergent replicas.
 - **JSON Pointer support:** Query the CRDT tree using JSON Pointer expressions ([RFC 6901](https://datatracker.ietf.org/doc/html/rfc6901)).
@@ -42,7 +42,7 @@
 
 # Theory
 ## What is a CRDT?
-A [**CRDT** (Conflict-free Replicated Data Type)](https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type) is a data structure designed for distributed systems, allowing multiple replicas to be updated independently and concurrently without coordination.
+A [CRDT (Conflict-free Replicated Data Type)](https://en.wikipedia.org/wiki/Conflict-free_replicated_data_type) is a data structure designed for distributed systems, allowing multiple replicas to be updated independently and concurrently without coordination.
 
 CRDTs guarantee that all replicas will eventually converge to the same state, regardless of the order of updates or network delays.
 
@@ -65,16 +65,16 @@ This ensures that every part of the tree is cryptographically attributable to a 
 This forms an [implicit certificate](https://en.wikipedia.org/wiki/Implicit_certificate) model: The public key does not need to be stored or transmitted explicitly — it is fully verifiable from the signature.
 
 ### Identity properties:
-- The identity is **self-sovereign** — owned and controlled by the user's keypair.
-- It is **portable** — usable across SyncTree instances.
-- It is **verifiable** — other peers can recover the public key from signatures and validate changes.
-- It requires **no centralized authority** — no login, no passwords, no central server.
+- The identity is self-sovereign — owned and controlled by the user's keypair.
+- It is portable — usable across SyncTree instances.
+- It is verifiable — other peers can recover the public key from signatures and validate changes.
+- It requires no centralized authority — no login, no passwords, no central server.
 
 ### How it is used in SyncTree:
-- Every change to the tree is **signed** by a user identity.
-- Each node records its **owner identity** and is **cryptographically verifiable** — *who made which change, when, and whether it was authorized*.
-- **Vector clocks** maintain **per-identity causal history** based on the `ownerID`.
-- Fine-grained **access control (ABAC)** is enforced per node in the tree, also based `ownerID`.
+- Every change to the tree is signed by a user private key.
+- Each node records its owner identity and is cryptographically verifiable, ho made which change, when, and whether it was authorized.
+- Vector clocks maintain per-identity causal history based on the `ownerID`.
+- Fine-grained access control (ABAC) is enforced per node in the tree, also based `ownerID`.
 
 ### Important: SyncTree is not a blockchain project
 - No consensus protocol is required.
@@ -85,7 +85,7 @@ This forms an [implicit certificate](https://en.wikipedia.org/wiki/Implicit_cert
 **SyncTree** is a **purely distributed data structure** — using Web3-style identity and implicit-certificate-style cryptographic signatures for verifiability and access control, designed for **lightweight, offline-capable, and peer-to-peer synchronization**.
 
 ### Relation to Decentralized Identifiers (DID)
-**SyncTree** implements a **decentralized, self-sovereign identity model** inspired by **[W3C Decentralized Identifiers (DIDs)](https://www.w3.org/TR/did-core/)**.
+**SyncTree** implements a **decentralized, self-sovereign identity model** inspired by [W3C Decentralized Identifiers (DIDs)](https://www.w3.org/TR/did-core/).
 
 Each identity is derived from an ECDSA keypair:
 - The `ownerID` is the SHA3 hash of the recovered public key.
