@@ -13,6 +13,7 @@ func init() {
 	rootCmd.AddCommand(setLiteralCmd)
 	rootCmd.AddCommand(mergeCmd)
 	rootCmd.AddCommand(printCmd)
+	rootCmd.AddCommand(verifyCmd)
 
 	importCmd.Flags().StringVarP(&PrvKey, "prvkey", "", "", "Private key")
 	importCmd.MarkFlagRequired("prvkey")
@@ -54,6 +55,11 @@ func init() {
 	printCmd.MarkFlagRequired("prvkey")
 	printCmd.Flags().StringVarP(&CRDTFile, "crdt", "", "", "File to store imported data")
 	printCmd.MarkFlagRequired("crdt")
+
+	verifyCmd.Flags().StringVarP(&PrvKey, "prvkey", "", "", "Private key")
+	verifyCmd.MarkFlagRequired("prvkey")
+	verifyCmd.Flags().StringVarP(&CRDTFile, "crdt", "", "", "File to verify integrity of the CRDT SyncTree")
+	verifyCmd.MarkFlagRequired("crdt")
 }
 
 var importCmd = &cobra.Command{
@@ -224,5 +230,30 @@ var printCmd = &cobra.Command{
 		jsonData, err := c.ExportJSON()
 		CheckError(err)
 		log.Info(string(jsonData))
+	},
+}
+
+var verifyCmd = &cobra.Command{
+	Use:   "verify",
+	Short: "Verify CRDT SyncTree integrity",
+	Long:  "Verify the integrity of the CRDT SyncTree",
+	Run: func(cmd *cobra.Command, args []string) {
+		log.WithFields(log.Fields{
+			"crdt": CRDTFile,
+		}).Info("Exporting CRDT SyncTree to JSON")
+
+		c, err := crdt.NewSecureTree(PrvKey)
+		CheckError(err)
+
+		crdtData, err := os.ReadFile(CRDTFile)
+		CheckError(err)
+
+		err = c.Load(crdtData)
+		CheckError(err)
+
+		err = c.VerifyTree()
+		CheckError(err)
+
+		log.Info("CRDT SyncTree integrity verified successfully")
 	},
 }
