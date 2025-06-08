@@ -793,3 +793,47 @@ func TestABACPolicyMerge_LWW(t *testing.T) {
 	// In strict LWW → B wins → client1's rules gone
 	assert.False(t, allowedClient1, "Expected client1 to lose after merge")
 }
+
+func TestSecureTreeSetLiteralt(t *testing.T) {
+	// Setup identities
+	prvKey := "b24b6cf725a6d0e12955ff35a470c823eaac6dbbe0feb5503a097ed5baca5328"
+
+	originalJSON := []byte(`{
+		"uid": "user_1",
+		"name": "Alice",
+		"friends": [
+			{
+				"uid": "user_2",
+				"name": "Bob"
+			},
+			{
+				"uid": "user_3",
+				"name": "Charlie",
+				"friends": [
+					{
+						"uid": "user_4",
+						"name": "Dana"
+					}
+				]
+			}
+		]
+	}`)
+
+	c, err := NewSecureTree(prvKey)
+	assert.Nil(t, err, "Failed to create new secure tree")
+
+	_, err = c.ImportJSON(originalJSON, prvKey)
+	assert.Nil(t, err, "Failed to import JSON into secure tree")
+
+	c2, err := c.Clone()
+	assert.Nil(t, err, "Failed to clone secure tree")
+
+	node, err := c2.GetNodeByPath("/friends/0/name")
+	assert.Nil(t, err, "Failed to get node by path")
+
+	err = node.SetLiteral("Johan2", prvKey)
+	assert.Nil(t, err, "Failed to set literal on node")
+
+	err = c.Merge(c2, prvKey)
+	assert.Nil(t, err, "Failed to merge secure trees")
+}
