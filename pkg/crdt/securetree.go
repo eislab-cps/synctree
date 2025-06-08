@@ -55,4 +55,5 @@ type SecureTree interface {
 
 	// Utility functions
 	Tidy()
+	VerifyTree() error
 }
