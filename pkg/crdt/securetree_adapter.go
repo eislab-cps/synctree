@@ -533,3 +533,7 @@ func (c *AdapterSecureTreeCRDT) Subscribe(path string, ch chan NodeEvent) {
 func (c *AdapterSecureTreeCRDT) Tidy() {
 	c.treeCrdt.Tidy()
 }
+
+func (c *AdapterSecureTreeCRDT) VerifyTree() error {
+	return c.treeCrdt.VerifyTree()
+}
