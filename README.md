@@ -6,16 +6,16 @@
 # Introduction
 **SyncTree** is a **CRDT-based tree** with built-in:
 
-- **Conflict-free merge** across distributed replicas  
-- **ECDSA crypto** for node signatures and identities (Web3 identities) 
-- **ABAC (Attribute-Based Access Control)** for fine-grained permissions  
+- **Conflict-free merge** across distributed replicas.
+- **ECDSA crypto** for node signatures and identities (Web3 identities).
+- **ABAC (Attribute-Based Access Control)** for fine-grained permissions.
 
 **Key Properties:**
-- **Conflict-free:** No need for manual conflict resolution
-- **Strong eventual consistency:** All replicas converge automatically
-- **Offline-capable:** Changes can be made locally and merged later
-- **Deterministic merge:** The merge process always produces the same result
-- **Self-sovereign identity (Web3) & self-verifiability** The entire CRDT tree — including identities, structure, and data — is cryptographically self-verifiable and controlled by the users, with no reliance on centralized authorities
+- **Conflict-free:** No need for manual conflict resolution.
+- **Strong eventual consistency:** All replicas converge automatically.
+- **Offline-first:** Changes can be made locally and merged later.
+- **Deterministic merge:** The merge process always produces the same result.
+- **Self-sovereign identity (Web3) & self-verifiability** The entire CRDT tree — including identities, structure, and data — is cryptographically self-verifiable and controlled by the users, with no reliance on centralized authorities.
 
 **Key Features:**
 - **Serialization** to/from **JSON**
@@ -33,26 +33,9 @@ A [**CRDT** (Conflict-free Replicated Data Type)](https://en.wikipedia.org/wiki/
 CRDTs guarantee that all replicas will eventually **converge to the same state**, regardless of the order of updates or network delays.
 
 The CRDT in SyncTree is based on the following algorithms:
-- **Last-Writer-Wins Register** — implemented using vector clocks  
-- **LSEQ** — To handle merge of ordered sequences, originally designed for efficient collaborative editing. Reference: [LSEQ — An adaptive structure for sequences in distributed collaborative editing](https://hal.inria.fr/hal-00921633/document)_
+- **Last-Writer-Wins Register** — implemented using vector clocks. 
+- **LSEQ** — To handle merge of ordered sequences, originally designed for efficient collaborative editing. Reference: [LSEQ — An adaptive structure for sequences in distributed collaborative editing](https://hal.inria.fr/hal-00921633/document).
 
-## Potential Applications
-- **Collaborative editing**  
-  Real-time editing of documents, code, or data structures.
-- **State Reconsolidation in Edge-Cloud Computing Continuums**  
-  Reconciling state across distributed systems, such as Edge-Cloud Computing continuums.
-- **Edge Computing on Satellites**
-  Satellites and industrial systems often operate with intermittent or delayed connectivity — CRDTs enable safe local updates and later synchronization.
-- **Digital Asset Management**  
-  E.g. **Digital Product Passport**, with fine-grained access control.
-- **Decentralized Applications (DApps)**  
-  Peer-to-peer Applications with conflict-free data structures.
-- **Decentralized Service Registries**  
-  Decentralized Service Registry in SOA or Microservices architectures (e.g. [Eclipse Arrowhead](https://arrowhead.eu/eclipse-arrowhead-2)).
-- **Agentic AI Systems**  
-  AI agents with shared state and fine-grained access control.
-
-# Getting started
 ## Web3 Identity in SyncTree
 In **SyncTree**, an **identity** is based on **ECDSA cryptographic keys** — the same primitives used in many **Web3 ecosystems** (e.g. Ethereum, Polkadot, Cosmos).
 
@@ -61,15 +44,40 @@ In **SyncTree**, an **identity** is based on **ECDSA cryptographic keys** — th
 
 This means:
 Your **identity is self-sovereign** — owned and controlled by you.  
-It is **portable** — can be used across decentralized applications (DApps), blockchains, and SyncTree instances.  
-It is **verifiable** — other peers can verify your node signatures using your public key.  
-It requires **no centralized authority** — no login, no passwords, no central server.  
+- It is **portable** — can be used across decentralized applications (DApps), blockchains, and SyncTree instances.  
+- It is **verifiable** — other peers can verify your node signatures using your public key.  
+- It requires **no centralized authority** — no login, no passwords, no central server.  
 
 In short — **SyncTree uses Web3-style identities** to ensure that:
 - Every change to the tree is **signed** by a user identity.
 - The entire tree is **cryptographically verifiable** (who made which change, when, and whether it is authorized).
-- Fine-grained **access control (ABAC)** can be enforced per node, based on identities.
+- Fine-grained **access control (ABAC)** can be enforced per node in the tree data structure, based on identities.
 
+**Important to note: SyncTree is not a blockchain project.**
+- No consensus protocol is required.
+- No global ledger or mining is used.
+- No transaction fees are involved.
+- No smart contracts are needed.
+
+SyncTree is a purely distributed data structure — using Web3-style identity and cryptographic signatures for verifiability and access control, but designed for lightweight, offline-capable, and peer-to-peer synchronization.
+
+## Potential Applications
+- **Collaborative editing**  
+  Real-time editing of documents, code, or data structures.
+- **State Reconsolidation in Edge-Cloud Computing Continuums** 
+  Reconciling state across distributed systems, such as Edge-Cloud Computing continuums.
+- **Edge Computing on Satellites and Space Systems**
+  Satellites and industrial systems often operate with intermittent or delayed connectivity — CRDTs enable safe local updates and later synchronization.
+- **Digital Asset Management**  
+    Managing Digital Product Passports and other digital representations of physical assets — with fine-grained access control, verifiable provenance, and decentralized state synchronization across supply chains and stakeholders.
+- **Decentralized Service Registries**  
+  Enabling decentralized Service Registries and orchestration layers for distributed SOA or microservice-based architectures (e.g. [Eclipse Arrowhead](https://arrowhead.eu/eclipse-arrowhead-2)).
+- **Agentic and Autonomous AI Systems**  
+   Supporting distributed agent-based AI systems with shared, verifiable state and fine-grained access control — enabling collaborative and adaptive AI at the edge and in dynamic environments.
+- **Distributed Medical Records and Multi-Actor Care Coordination** Enabling mergeable, trust-controlled medical records shared across multiple healthcare providers, home care services, and patients — with per-node ABAC, verifiable provenance of clinical actions, and offline-first operation for remote and underserved regions. 
+- **Military and Tactical Edge Applications** Enabling decentralized orchestration of AI-enabled platforms (UAVs, UGVs, autonomous sensors), secure and verifiable mission data sharing, and resilient command and control across highly dynamic and partitioned battlefield networks — supporting coalition operations, disconnected operations, and tactical autonomy.
+
+# Getting started
 ### Generate a ECDSA Private key
 ```console
 synctree key generate
