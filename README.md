@@ -204,7 +204,7 @@ synctree merge --crdt1 tree.json --crdt2 tree2.json --crdtout treemerged.json --
 
 ### Verify CRDT SyncTree
 ```console
-synctree verify --crdt tree.json --prvkey  b24b6cf725a6d0e12955ff35a470c823eaac6dbbe0feb5503a097ed5baca5328 
+synctree verify --crdt tree.json --prvkey b24b6cf725a6d0e12955ff35a470c823eaac6dbbe0feb5503a097ed5baca5328 
 ```
 
 ### CRDT Viwer
