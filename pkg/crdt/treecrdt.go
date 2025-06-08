@@ -727,7 +727,7 @@ func (c *TreeCRDT) SecureMerge(c2 *TreeCRDT, prvKey string) error {
 		return fmt.Errorf("Failed to clone CRDT tree for merge: %w", err)
 	}
 
-	// Step 2: Simulate merge on clone
+	// Step 2: Simulate merge on the clone
 	err = c1Copy.merge(c2, true, prvKey)
 	if err != nil {
 		log.WithFields(log.Fields{
@@ -818,6 +818,8 @@ func (c *TreeCRDT) merge(c2 *TreeCRDT, secure bool, prvKey string) error {
 
 		if remote.IsLiteral {
 			err := local.setLiteralWithVersion(remote.LiteralValue, remote.Owner, remote.Clock[remote.Owner])
+			local.Nounce = remote.Nounce
+			local.Signature = remote.Signature
 			if err != nil {
 				log.WithFields(log.Fields{
 					"NodeID": remote.ID,

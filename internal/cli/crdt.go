@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"fmt"
 	"github.com/eislab-cps/synctree/pkg/crdt"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -168,8 +167,6 @@ var mergeCmd = &cobra.Command{
 			"crdt2":   CRDTFileIn2,
 			"crdtout": CRDTFileOut,
 		}).Info("Merging two CRDT SyncTree files")
-
-		fmt.Println("XXXXXXXXXXXXXXXX", PrvKey)
 
 		c1, err := crdt.NewSecureTree(PrvKey)
 		CheckError(err)

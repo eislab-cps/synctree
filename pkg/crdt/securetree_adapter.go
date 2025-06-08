@@ -47,6 +47,7 @@ func performSecureAction(
 		return fmt.Errorf("failed to sign node: %w", err)
 	}
 
+	// TODO: This is only required if the parent node was modified.
 	if node.ParentID != "" {
 		parentNode, ok := node.tree.GetNode(node.ParentID)
 		if !ok {
