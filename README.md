@@ -29,15 +29,14 @@
 - **State Reconsolidation in Edge-Cloud Computing Continuums** 
   Reconciling state across distributed systems, such as Edge-Cloud Computing continuums.
 - **IoT Automation** Providing a verifiable shared state for smart home and IoT environments — where the SyncTree represents the desired state of devices (lighting, HVAC, alarms, appliances), and IoT devices subscribe to state changes and autonomously act upon them. Enables offline-capable operation, automatic state reconciliation, and auditable changes across heterogeneous IoT networks without requiring centralized cloud control.
+- **Decentralized Service Registries** Enabling decentralized Service Registries and orchestration layers for distributed SOA or microservice-based architectures (e.g. [Eclipse Arrowhead](https://arrowhead.eu/eclipse-arrowhead-2)).
 - **Edge Computing on Satellites and Space Systems**  
   Satellites and industrial systems often operate with intermittent or delayed connectivity. SyncTree’s CRDT-based model enables local updates and synchronization across distributed ground stations and space assets. Example use cases include configuring AI processing pipelines, managing software configurations, parameter tuning, etc.
 - **Digital Asset Management**  
   Managing Digital Product Passports and other digital representations of physical assets — with fine-grained access control, verifiable provenance, and decentralized state synchronization across supply chains and stakeholders.
-- **Decentralized Service Registries**  
-  Enabling decentralized Service Registries and orchestration layers for distributed SOA or microservice-based architectures (e.g. [Eclipse Arrowhead](https://arrowhead.eu/eclipse-arrowhead-2)).
+- **Distributed Medical Records** Enabling mergeable, trust-controlled medical records shared across multiple healthcare providers, home care services, and patients, enabling verifiable provenance of clinical actions, and offline-first operation for remote and underserved regions. 
 - **Agentic and Autonomous AI Systems**  
   Supporting distributed agent-based AI systems with shared, verifiable state and fine-grained access control — enabling collaborative and adaptive AI at the edge and in dynamic environments.
-- **Distributed Medical Records** Enabling mergeable, trust-controlled medical records shared across multiple healthcare providers, home care services, and patients, enabling verifiable provenance of clinical actions, and offline-first operation for remote and underserved regions. 
 - **Military and Tactical Edge Applications** Enabling decentralized orchestration of AI-enabled platforms (UAVs, UGVs, autonomous sensors), secure and verifiable mission data sharing, and resilient command and control across highly dynamic and partitioned battlefield networks.
 
 # Theory
