@@ -64,13 +64,13 @@ This ensures that every part of the tree is cryptographically attributable to a 
 
 This forms an [implicit certificate](https://en.wikipedia.org/wiki/Implicit_certificate) model: The public key does not need to be stored or transmitted explicitly — it is fully verifiable from the signature.
 
-### Identity properties:
+### Identity properties
 - The identity is self-sovereign — owned and controlled by the user's keypair.
 - It is portable — usable across SyncTree instances.
 - It is verifiable — other peers can recover the public key from signatures and validate changes.
 - It requires no centralized authority — no login, no passwords, no central server.
 
-### How it is used in SyncTree:
+### How it is used in SyncTree?
 - Every change to the tree is signed by a user private key.
 - Each node records its owner identity and is cryptographically verifiable, ho made which change, when, and whether it was authorized.
 - Vector clocks maintain per-identity causal history based on the `ownerID`.
