@@ -32,13 +32,13 @@
 - **Edge Computing on Satellites and Space Systems**  
   Satellites and industrial systems often operate with **intermittent or delayed connectivity**. SyncTree’s CRDT-based model enables safe **local updates** and **later synchronization** across distributed ground stations and space assets. Example use cases include **configuring AI processing pipelines**, **managing software configurations**, **parameter tuning**, and **coordinating state across constellations** — with full **auditability**, **conflict-free merging**, and **offline-capable operation**.
 - **Digital Asset Management**  
-    Managing Digital Product Passports and other digital representations of physical assets — with fine-grained access control, verifiable provenance, and decentralized state synchronization across supply chains and stakeholders.
+  Managing Digital Product Passports and other digital representations of physical assets — with fine-grained access control, verifiable provenance, and decentralized state synchronization across supply chains and stakeholders.
 - **Decentralized Service Registries**  
   Enabling decentralized Service Registries and orchestration layers for distributed SOA or microservice-based architectures (e.g. [Eclipse Arrowhead](https://arrowhead.eu/eclipse-arrowhead-2)).
 - **Agentic and Autonomous AI Systems**  
-   Supporting distributed agent-based AI systems with shared, verifiable state and fine-grained access control — enabling collaborative and adaptive AI at the edge and in dynamic environments.
-- **Distributed Medical Records and Multi-Actor Care Coordination** Enabling mergeable, trust-controlled medical records shared across multiple healthcare providers, home care services, and patients — with per-node ABAC, verifiable provenance of clinical actions, and offline-first operation for remote and underserved regions. 
-- **Military and Tactical Edge Applications** Enabling decentralized orchestration of AI-enabled platforms (UAVs, UGVs, autonomous sensors), secure and verifiable mission data sharing, and resilient command and control across highly dynamic and partitioned battlefield networks — supporting coalition operations, disconnected operations, and tactical autonomy.
+  Supporting distributed agent-based AI systems with shared, verifiable state and fine-grained access control — enabling collaborative and adaptive AI at the edge and in dynamic environments.
+- **Distributed Medical Records and Multi-Actor Care Coordination** Enabling mergeable, trust-controlled medical records shared across multiple healthcare providers, home care services, and patients, enabling verifiable provenance of clinical actions, and offline-first operation for remote and underserved regions. 
+- **Military and Tactical Edge Applications** Enabling decentralized orchestration of AI-enabled platforms (UAVs, UGVs, autonomous sensors), secure and verifiable mission data sharing, and resilient command and control across highly dynamic and partitioned battlefield networks.
 
 # Theory
 ## What is a CRDT?
@@ -66,15 +66,15 @@ This forms an **[implicit certificate](https://en.wikipedia.org/wiki/Implicit_ce
 
 ### Identity properties:
 - The identity is **self-sovereign** — owned and controlled by the user's keypair.
-- It is **portable** — usable across decentralized applications (DApps), blockchains, and SyncTree instances.
+- It is **portable** — usable across SyncTree instances.
 - It is **verifiable** — other peers can recover the public key from signatures and validate changes.
 - It requires **no centralized authority** — no login, no passwords, no central server.
 
 ### How it is used in SyncTree:
 - Every change to the tree is **signed** by a user identity.
 - Each node records its **owner identity** and is **cryptographically verifiable** — *who made which change, when, and whether it was authorized*.
-- **Vector clocks** maintain **per-identity causal history** using `ownerID` as the actor ID.
-- Fine-grained **access control (ABAC)** is enforced per node in the tree, based on identities.
+- **Vector clocks** maintain **per-identity causal history** based on the `ownerID`.
+- Fine-grained **access control (ABAC)** is enforced per node in the tree, also based `ownerID`.
 
 ### Important: SyncTree is not a blockchain project
 - No consensus protocol is required.
@@ -94,7 +94,7 @@ Each identity is derived from an **ECDSA keypair**:
 - Per-node **ABAC policies** are enforced based on these identities.
 - The tree is fully **cryptographically verifiable**.
 
-Unlike full W3C DID architecture:
+Unlike full W3C DID:
 
 - SyncTree does not use `"did:"` URIs or DID Documents.
 - No external **DID resolution** is required — identities are **embedded** and self-contained.
@@ -105,10 +105,10 @@ This design provides a **lightweight, DID-compatible model** optimized for **off
 ## Deterministic Merge Semantics
 To synchronize a node in **SyncTree**, the following criteria must be met:
 
-1. The tree must be **structurally valid** (e.g. no loops, no orphaned nodes).
+1. The tree must be **structurally valid** (e.g. no loops).
 2. All **signatures** must be valid — the digest is computed from the node data.
 3. The **recovered owner ID** (SHA3 of recovered public key) must match the specified `owner` field in the node.
-4. The `ownerID` must have the appropriate **permissions** to modify the node (or its parent), according to **ABAC policy**.
+4. The `ownerID` must have the appropriate **permissions** to modify the node (or its parent), according to the **ABAC policy**, also embedded in the tree.
 5. If the node is a **Map** or **Literal**, use **vector-clock-based Last-Writer-Wins (LWW)** strategy for merging:
     - Vector clocks are keyed by `ownerID`.
     - In case of equal clocks (tie), use `ownerID` as a **tie-breaker** for deterministic merge.
