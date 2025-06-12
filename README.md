@@ -71,7 +71,7 @@ This forms an [implicit certificate](https://en.wikipedia.org/wiki/Implicit_cert
 
 ### How it is used in SyncTree?
 - Every change to the tree is signed by a user private key.
-- Each node records its owner identity and is cryptographically verifiable, ho made which change, when, and whether it was authorized.
+- Each node records its owner identity and is cryptographically verifiable, who made which change, when, and whether it was authorized.
 - Vector clocks maintain per-identity causal history based on the `ownerID`.
 - Fine-grained access control (ABAC) is enforced per node in the tree, also based `ownerID`.
 
