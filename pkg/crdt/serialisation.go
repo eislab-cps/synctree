@@ -281,7 +281,7 @@ func (c *TreeCRDT) Save() ([]byte, error) {
 			"owner":         string(node.Owner),
 			"clock":         node.Clock,
 			"signature":     node.Signature,
-			"nounce":        node.Nounce,
+			"nonce":        node.Nonce,
 			"edges":         edges,
 		}
 	}
@@ -330,7 +330,7 @@ func (c *TreeCRDT) Load(data []byte) error {
 			LiteralValue: nodeMap["litteralValue"],
 			Owner:        ClientID(nodeMap["owner"].(string)),
 			Signature:    nodeMap["signature"].(string),
-			Nounce:       nodeMap["nounce"].(string),
+			Nonce:       nodeMap["nonce"].(string),
 		}
 		node.tree = c
 

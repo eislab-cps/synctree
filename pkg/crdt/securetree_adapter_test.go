@@ -66,7 +66,7 @@ func TestSecureTreeAdapterSetLiteral(t *testing.T) {
 		assert.Nil(t, err)
 
 		secureNode := aNode.(*AdapterSecureNodeCRDT)
-		assert.NotEmpty(t, secureNode.nodeCrdt.Nounce)
+		assert.NotEmpty(t, secureNode.nodeCrdt.Nonce)
 		assert.NotEmpty(t, secureNode.nodeCrdt.Signature)
 	})
 }

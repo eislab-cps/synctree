@@ -232,7 +232,7 @@ func (c *AdapterSecureTreeCRDT) CreateNode(name string, nodeType NodeType, prvKe
 		return newNode, nil
 	}
 
-	var nounce, signature string
+	var nonce, signature string
 	err := performSecureAction(
 		false, // Check ABAC policy since this node is not attached to the tree yet
 		prvKey,
@@ -245,7 +245,7 @@ func (c *AdapterSecureTreeCRDT) CreateNode(name string, nodeType NodeType, prvKe
 		return nil, err
 	}
 
-	newNode.Nounce = nounce
+	newNode.Nonce = nonce
 	newNode.Signature = signature
 
 	return &AdapterSecureNodeCRDT{nodeCrdt: newNode}, nil
@@ -298,7 +298,7 @@ func (c *AdapterSecureTreeCRDT) AddEdge(from, to NodeID, label string, prvKey st
 		return node, nil
 	}
 
-	// Write to the parent's node.Nounce and node.Signature
+	// Write to the parent's node.Nonce and node.Signature
 	return performSecureAction(
 		true,
 		prvKey,
