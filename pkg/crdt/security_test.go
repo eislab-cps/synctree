@@ -11,7 +11,7 @@ import (
 
 func TestInterop(t *testing.T) {
 	prvKey := "d6eb959e9aec2e6fdc44b5862b269e987b8a4d6f2baca542d8acaa97ee5e74f6"
-	idendity, err := crypto.CreateIdendityFromString(prvKey)
+	idendity, err := crypto.CreateIdentityFromString(prvKey)
 	assert.Nil(t, err)
 
 	fmt.Println("Message=hello")

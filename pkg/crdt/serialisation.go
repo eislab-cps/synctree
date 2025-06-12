@@ -17,7 +17,7 @@ func (c *TreeCRDT) ImportJSON(rawJSON []byte, clientID ClientID) (NodeID, error)
 	return c.importJSON(rawJSON, c.Root.ID, "", -1, Root, clientID, false, nil)
 }
 
-func (c *TreeCRDT) SecureImportJSON(rawJSON []byte, identity *crypto.Idendity) (NodeID, error) {
+func (c *TreeCRDT) SecureImportJSON(rawJSON []byte, identity *crypto.Identity) (NodeID, error) {
 	clientID := ClientID(identity.ID())
 	return c.importJSON(rawJSON, c.Root.ID, "", -1, Root, clientID, true, identity)
 }
@@ -41,7 +41,7 @@ func (c *TreeCRDT) ImportJSONToMap(rawJSON []byte, parentID NodeID, key string, 
 	return c.importJSON(rawJSON, parentID, key, -1, Map, clientID, false, nil)
 }
 
-func (c *TreeCRDT) SecureImportJSONToMap(rawJSON []byte, parentID NodeID, key string, identity *crypto.Idendity) (NodeID, error) {
+func (c *TreeCRDT) SecureImportJSONToMap(rawJSON []byte, parentID NodeID, key string, identity *crypto.Identity) (NodeID, error) {
 	if parentID == "" {
 		if c.Root == nil {
 			return "", errors.New("cannot import JSON without a root node")
@@ -80,7 +80,7 @@ func (c *TreeCRDT) ImportJSONToArray(rawJSON []byte, parentID NodeID, clientID C
 	return c.importJSON(rawJSON, parentID, "", -1, Map, clientID, false, nil)
 }
 
-func (c *TreeCRDT) SecureImportJSONToArray(rawJSON []byte, parentID NodeID, identity *crypto.Idendity) (NodeID, error) {
+func (c *TreeCRDT) SecureImportJSONToArray(rawJSON []byte, parentID NodeID, identity *crypto.Identity) (NodeID, error) {
 	if parentID == "" {
 		if c.Root == nil {
 			return "", errors.New("cannot import JSON without a root node")
@@ -100,7 +100,7 @@ func (c *TreeCRDT) SecureImportJSONToArray(rawJSON []byte, parentID NodeID, iden
 	return c.importJSON(rawJSON, parentID, "", -1, Map, clientID, true, identity)
 }
 
-func (c *TreeCRDT) importJSON(rawJSON []byte, parentID NodeID, edgeLabel string, idx int, nodeType NodeType, clientID ClientID, secure bool, identity *crypto.Idendity) (NodeID, error) {
+func (c *TreeCRDT) importJSON(rawJSON []byte, parentID NodeID, edgeLabel string, idx int, nodeType NodeType, clientID ClientID, secure bool, identity *crypto.Identity) (NodeID, error) {
 	version := 1
 	var parent *NodeCRDT
 	if parentID == "" {
@@ -120,7 +120,7 @@ func (c *TreeCRDT) importJSON(rawJSON []byte, parentID NodeID, edgeLabel string,
 	return nodeID, err
 }
 
-func (c *TreeCRDT) secureImportRecursive(v interface{}, parent *NodeCRDT, edgeLabel string, idx int, nodeType NodeType, clientID ClientID, secure bool, identity *crypto.Idendity) (NodeID, error) {
+func (c *TreeCRDT) secureImportRecursive(v interface{}, parent *NodeCRDT, edgeLabel string, idx int, nodeType NodeType, clientID ClientID, secure bool, identity *crypto.Identity) (NodeID, error) {
 	version := 1
 
 	switch val := v.(type) {

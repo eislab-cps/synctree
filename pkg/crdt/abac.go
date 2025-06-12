@@ -33,10 +33,10 @@ type ABACPolicy struct {
 	Nounce    string                                        `json:"nounce"`
 	Signature string                                        `json:"signature"`
 	tree      TreeChecker                                   `json:"-"`
-	identity  *crypto.Idendity                              `json:"-"`
+	identity  *crypto.Identity                              `json:"-"`
 }
 
-func NewABACPolicy(tree TreeChecker, ownerID string, identity *crypto.Idendity) *ABACPolicy {
+func NewABACPolicy(tree TreeChecker, ownerID string, identity *crypto.Identity) *ABACPolicy {
 	return &ABACPolicy{
 		Rules:    make(map[string]map[ABACAction]map[NodeID]ABACRule),
 		tree:     tree,

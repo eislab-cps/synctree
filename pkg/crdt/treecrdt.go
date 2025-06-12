@@ -863,7 +863,7 @@ func (c *TreeCRDT) merge(c2 *TreeCRDT, secure bool, prvKey string) error {
 					}).Error("AddEdge failed during promotion")
 				}
 				if secure {
-					identity, err := crypto.CreateIdendityFromString(prvKey)
+					identity, err := crypto.CreateIdentityFromString(prvKey)
 					if err != nil {
 						log.WithFields(log.Fields{
 							"NodeID": fromNode.ID,

@@ -14,7 +14,7 @@ func CreateCrypto() *StandaloneCrypto {
 }
 
 func (standaloneCrypto *StandaloneCrypto) GeneratePrivateKey() (string, error) {
-	identify, err := crypto.CreateIdendity()
+	identify, err := crypto.CreateIdentity()
 	if err != nil {
 		return "", err
 	}
@@ -23,7 +23,7 @@ func (standaloneCrypto *StandaloneCrypto) GeneratePrivateKey() (string, error) {
 }
 
 func (standaloneCrypto *StandaloneCrypto) GenerateID(prvKey string) (string, error) {
-	identify, err := crypto.CreateIdendityFromString(prvKey)
+	identify, err := crypto.CreateIdentityFromString(prvKey)
 	if err != nil {
 		return "", err
 	}
@@ -32,7 +32,7 @@ func (standaloneCrypto *StandaloneCrypto) GenerateID(prvKey string) (string, err
 }
 
 func (standaloneCrypto *StandaloneCrypto) GenerateSignature(data string, prvKey string) (string, error) {
-	idendity, err := crypto.CreateIdendityFromString(prvKey)
+	idendity, err := crypto.CreateIdentityFromString(prvKey)
 	if err != nil {
 		return "", err
 	}

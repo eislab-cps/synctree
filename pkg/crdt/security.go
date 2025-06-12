@@ -121,7 +121,7 @@ func jsonInt(i int) (string, error) {
 	return string(b), nil
 }
 
-func (n *NodeCRDT) Sign(identity *crypto.Idendity) error {
+func (n *NodeCRDT) Sign(identity *crypto.Identity) error {
 	n.Nounce = random.GenerateRandomID()
 	digest, err := n.ComputeDigest()
 	if err != nil {
