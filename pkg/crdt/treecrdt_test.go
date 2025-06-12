@@ -479,7 +479,7 @@ func TestTreeCRDTValidation(t *testing.T) {
 			Owner:     client,
 			tree:      c,
 			Clock:     VectorClock{},
-			Nounce:    "iso",
+			Nonce:    "iso",
 			Signature: "sig",
 		}
 		c.Nodes[isolated.ID] = isolated

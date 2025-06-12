@@ -19,7 +19,7 @@ func performSecureAction(
 	abac *ABACPolicy,
 	actionFn func(ClientID) (*NodeCRDT, error),
 ) error {
-	identity, err := crypto.CreateIdendityFromString(prvKey)
+	identity, err := crypto.CreateIdentityFromString(prvKey)
 	if err != nil {
 		return fmt.Errorf("failed to create identity: %w", err)
 	}
@@ -179,7 +179,7 @@ type AdapterSecureTreeCRDT struct {
 }
 
 func NewSecureTree(prvKey string) (SecureTree, error) {
-	identity, err := crypto.CreateIdendityFromString(prvKey)
+	identity, err := crypto.CreateIdentityFromString(prvKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create identity from string: %w", err)
 	}
@@ -232,7 +232,7 @@ func (c *AdapterSecureTreeCRDT) CreateNode(name string, nodeType NodeType, prvKe
 		return newNode, nil
 	}
 
-	var nounce, signature string
+	var nonce, signature string
 	err := performSecureAction(
 		false, // Check ABAC policy since this node is not attached to the tree yet
 		prvKey,
@@ -245,7 +245,7 @@ func (c *AdapterSecureTreeCRDT) CreateNode(name string, nodeType NodeType, prvKe
 		return nil, err
 	}
 
-	newNode.Nounce = nounce
+	newNode.Nonce = nonce
 	newNode.Signature = signature
 
 	return &AdapterSecureNodeCRDT{nodeCrdt: newNode}, nil
@@ -298,7 +298,7 @@ func (c *AdapterSecureTreeCRDT) AddEdge(from, to NodeID, label string, prvKey st
 		return node, nil
 	}
 
-	// Write to the parent's node.Nounce and node.Signature
+	// Write to the parent's node.Nonce and node.Signature
 	return performSecureAction(
 		true,
 		prvKey,
@@ -433,7 +433,7 @@ func (c *AdapterSecureTreeCRDT) Merge(c2 SecureTree, prvKey string) error { // T
 }
 
 func (c *AdapterSecureTreeCRDT) ImportJSON(rawJSON []byte, prvKey string) (NodeID, error) { // Tested
-	identity, err := crypto.CreateIdendityFromString(prvKey)
+	identity, err := crypto.CreateIdentityFromString(prvKey)
 	if err != nil {
 		return "", fmt.Errorf("failed to create identity from string: %w", err)
 	}
@@ -448,7 +448,7 @@ func (c *AdapterSecureTreeCRDT) ImportJSON(rawJSON []byte, prvKey string) (NodeI
 }
 
 func (c *AdapterSecureTreeCRDT) ImportJSONToMap(rawJSON []byte, parentID NodeID, key string, prvKey string) (NodeID, error) { // Tested
-	identity, err := crypto.CreateIdendityFromString(prvKey)
+	identity, err := crypto.CreateIdentityFromString(prvKey)
 	if err != nil {
 		return "", fmt.Errorf("failed to create identity from string: %w", err)
 	}
@@ -463,7 +463,7 @@ func (c *AdapterSecureTreeCRDT) ImportJSONToMap(rawJSON []byte, parentID NodeID,
 }
 
 func (c *AdapterSecureTreeCRDT) ImportJSONToArray(rawJSON []byte, parentID NodeID, prvKey string) (NodeID, error) {
-	identity, err := crypto.CreateIdendityFromString(prvKey)
+	identity, err := crypto.CreateIdentityFromString(prvKey)
 	if err != nil {
 		return "", fmt.Errorf("failed to create identity from string: %w", err)
 	}

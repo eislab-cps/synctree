@@ -12,13 +12,13 @@ import (
 	"github.com/btcsuite/btcd/btcec/v2"
 )
 
-type Idendity struct {
+type Identity struct {
 	prv *ecdsa.PrivateKey
 	id  string
 }
 
-func CreateIdendity() (*Idendity, error) {
-	idendity := &Idendity{}
+func CreateIdentity() (*Identity, error) {
+	identity := &Identity{}
 
 	prv, err := ecdsa.GenerateKey(btcec.S256(), rand.Reader)
 	if err != nil {
@@ -29,24 +29,24 @@ func CreateIdendity() (*Idendity, error) {
 		return nil, errors.New("Invalid private key")
 	}
 
-	idendity.prv = prv
-	idendity.id = GenerateHashFromString(idendity.PublicKeyAsHex()).String()
+	identity.prv = prv
+	identity.id = GenerateHashFromString(identity.PublicKeyAsHex()).String()
 
-	return idendity, nil
+	return identity, nil
 }
 
-func (idendity *Idendity) PrivateKey() *ecdsa.PrivateKey {
-	return idendity.prv
+func (identity *Identity) PrivateKey() *ecdsa.PrivateKey {
+	return identity.prv
 }
 
-func (idendity *Idendity) PrivateKeyAsHex() string {
-	n := idendity.prv.Params().BitSize / 8
+func (identity *Identity) PrivateKeyAsHex() string {
+	n := identity.prv.Params().BitSize / 8
 	binaryDump := make([]byte, n)
-	if idendity.prv.D.BitLen()/8 >= n {
-		binaryDump = idendity.prv.D.Bytes()
+	if identity.prv.D.BitLen()/8 >= n {
+		binaryDump = identity.prv.D.Bytes()
 	} else {
 		i := len(binaryDump)
-		for _, d := range idendity.prv.D.Bits() {
+		for _, d := range identity.prv.D.Bits() {
 			for j := 0; j < wordBytes && i > 0; j++ {
 				i--
 				binaryDump[i] = byte(d)
@@ -58,12 +58,12 @@ func (idendity *Idendity) PrivateKeyAsHex() string {
 	return hex.EncodeToString(binaryDump)
 }
 
-func (idendity *Idendity) ID() string {
-	return idendity.id
+func (identity *Identity) ID() string {
+	return identity.id
 }
 
 func GenerateID(hexEncodedPrv string) (string, error) {
-	identity, err := CreateIdendityFromString(hexEncodedPrv)
+	identity, err := CreateIdentityFromString(hexEncodedPrv)
 	if err != nil {
 		return "", err
 	}
@@ -71,8 +71,8 @@ func GenerateID(hexEncodedPrv string) (string, error) {
 	return identity.ID(), nil
 }
 
-func CreateIdendityFromString(hexEncodedPrv string) (*Idendity, error) {
-	idendity := &Idendity{}
+func CreateIdentityFromString(hexEncodedPrv string) (*Identity, error) {
+	identity := &Identity{}
 	decodedPrv, err := hex.DecodeString(hexEncodedPrv)
 
 	if err != nil {
@@ -99,16 +99,16 @@ func CreateIdendityFromString(hexEncodedPrv string) (*Idendity, error) {
 		return nil, errors.New("Invalid private key")
 	}
 
-	idendity.prv = prv
-	idendity.id = GenerateHashFromString(idendity.PublicKeyAsHex()).String()
+	identity.prv = prv
+	identity.id = GenerateHashFromString(identity.PublicKeyAsHex()).String()
 
-	return idendity, nil
+	return identity, nil
 }
 
-func (idendity *Idendity) PublicKey() []byte {
-	return elliptic.Marshal(btcec.S256(), idendity.prv.PublicKey.X, idendity.prv.PublicKey.Y)
+func (identity *Identity) PublicKey() []byte {
+	return elliptic.Marshal(btcec.S256(), identity.prv.PublicKey.X, identity.prv.PublicKey.Y)
 }
 
-func (idendity *Idendity) PublicKeyAsHex() string {
-	return hex.EncodeToString(idendity.PublicKey())
+func (identity *Identity) PublicKeyAsHex() string {
+	return hex.EncodeToString(identity.PublicKey())
 }

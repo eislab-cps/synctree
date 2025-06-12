@@ -8,7 +8,7 @@ import (
 )
 
 func TestRecoveredID(t *testing.T) {
-	idendity, err := CreateIdendity()
+	idendity, err := CreateIdentity()
 	assert.Nil(t, err)
 
 	msg := "test"
@@ -26,7 +26,7 @@ func TestRecoveredID(t *testing.T) {
 }
 
 func TestRecoverFromStrings(t *testing.T) {
-	idendity, err := CreateIdendity()
+	idendity, err := CreateIdentity()
 	assert.Nil(t, err)
 
 	msg := "test"
@@ -44,7 +44,7 @@ func TestRecoverFromStrings(t *testing.T) {
 }
 
 func TestRecoverFromStringsInvalidHash(t *testing.T) {
-	idendity, err := CreateIdendity()
+	idendity, err := CreateIdentity()
 	assert.Nil(t, err)
 
 	msg := "test"
@@ -61,7 +61,7 @@ func TestRecoverFromStringsInvalidHash(t *testing.T) {
 }
 
 func TestRecoverPublicKey(t *testing.T) {
-	idendity, err := CreateIdendity()
+	idendity, err := CreateIdentity()
 	assert.Nil(t, err)
 
 	hash := GenerateHash([]byte("test"))
@@ -75,10 +75,10 @@ func TestRecoverPublicKey(t *testing.T) {
 }
 
 func TestRecoverPublicKeyInvalidSignature(t *testing.T) {
-	idendity, err := CreateIdendity()
+	idendity, err := CreateIdentity()
 	assert.Nil(t, err)
 
-	idendity2, err := CreateIdendity()
+	idendity2, err := CreateIdentity()
 	assert.Nil(t, err)
 
 	hash := GenerateHash([]byte("test"))
@@ -92,7 +92,7 @@ func TestRecoverPublicKeyInvalidSignature(t *testing.T) {
 }
 
 func TestSignAndVerify(t *testing.T) {
-	idendity, err := CreateIdendity()
+	idendity, err := CreateIdentity()
 	assert.Nil(t, err)
 
 	msg := "test"
@@ -110,10 +110,10 @@ func TestSignAndVerify(t *testing.T) {
 }
 
 func TestSignAndVerifyInvalidPubKey(t *testing.T) {
-	idendity, err := CreateIdendity()
+	idendity, err := CreateIdentity()
 	assert.Nil(t, err)
 
-	idendity2, err := CreateIdendity()
+	idendity2, err := CreateIdentity()
 	assert.Nil(t, err)
 
 	msg := "test"
@@ -132,7 +132,7 @@ func TestSignAndVerifyInvalidPubKey(t *testing.T) {
 
 func TestInterop(t *testing.T) {
 	prvKey := "d6eb959e9aec2e6fdc44b5862b269e987b8a4d6f2baca542d8acaa97ee5e74f6"
-	idendity, err := CreateIdendityFromString(prvKey)
+	idendity, err := CreateIdentityFromString(prvKey)
 	assert.Nil(t, err)
 
 	hash := GenerateHashFromString("hello")

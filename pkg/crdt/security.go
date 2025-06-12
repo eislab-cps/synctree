@@ -22,8 +22,8 @@ type nodeDigest struct {
 	IsMap        bool           `json:"ismap"`
 	IsArray      bool           `json:"isarray"`
 	IsLiteral    bool           `json:"isliteral"`
-	LiteralValue interface{}    `json:"litteralValue"`
-	Nounce       string         `json:"nounce"`
+	LiteralValue interface{}    `json:"literalValue"`
+	Nonce       string         `json:"nonce"`
 	IsDeleted    bool           `json:"deleted"`
 }
 
@@ -37,7 +37,7 @@ func (n *NodeCRDT) ComputeDigest() (*crypto.Hash, error) {
 		IsArray:      n.IsArray,
 		IsLiteral:    n.IsLiteral,
 		LiteralValue: n.LiteralValue,
-		Nounce:       n.Nounce,
+		Nonce:       n.Nonce,
 		IsDeleted:    n.IsDeleted,
 	}
 
@@ -58,14 +58,14 @@ func (n *NodeCRDT) ComputeDigest() (*crypto.Hash, error) {
 	encodeField(&buf, "ismap", d.IsMap)
 	encodeField(&buf, "isarray", d.IsArray)
 	encodeField(&buf, "isliteral", d.IsLiteral)
-	encodeField(&buf, "litteralValue", d.LiteralValue)
-	encodeField(&buf, "nounce", d.Nounce)
+	encodeField(&buf, "literalValue", d.LiteralValue)
+	encodeField(&buf, "nonce", d.Nonce)
 	encodeField(&buf, "deleted", d.IsDeleted)
 
 	buf.Truncate(buf.Len() - 1) // remove last comma
 	buf.WriteString("}")
 
-	digest := crypto.GenerateHashFromString(string(buf.Bytes()) + n.Nounce)
+	digest := crypto.GenerateHashFromString(string(buf.Bytes()) + n.Nonce)
 
 	return digest, nil
 }
@@ -121,8 +121,8 @@ func jsonInt(i int) (string, error) {
 	return string(b), nil
 }
 
-func (n *NodeCRDT) Sign(identity *crypto.Idendity) error {
-	n.Nounce = random.GenerateRandomID()
+func (n *NodeCRDT) Sign(identity *crypto.Identity) error {
+	n.Nonce = random.GenerateRandomID()
 	digest, err := n.ComputeDigest()
 	if err != nil {
 		log.WithFields(log.Fields{

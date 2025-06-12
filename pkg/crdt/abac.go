@@ -30,13 +30,13 @@ type ABACPolicy struct {
 	Rules     map[string]map[ABACAction]map[NodeID]ABACRule `json:"rules"`
 	OwnerID   string                                        `json:"ownerID"`
 	Clock     VectorClock                                   `json:"clock"`
-	Nounce    string                                        `json:"nounce"`
+	Nonce    string                                        `json:"nounce"`
 	Signature string                                        `json:"signature"`
 	tree      TreeChecker                                   `json:"-"`
-	identity  *crypto.Idendity                              `json:"-"`
+	identity  *crypto.Identity                              `json:"-"`
 }
 
-func NewABACPolicy(tree TreeChecker, ownerID string, identity *crypto.Idendity) *ABACPolicy {
+func NewABACPolicy(tree TreeChecker, ownerID string, identity *crypto.Identity) *ABACPolicy {
 	return &ABACPolicy{
 		Rules:    make(map[string]map[ABACAction]map[NodeID]ABACRule),
 		tree:     tree,
@@ -219,7 +219,7 @@ func (p *ABACPolicy) Merge(remote *ABACPolicy) error {
 		p.Clock = copyClock(remote.Clock)
 		p.Rules = deepCopyRules(remote.Rules)
 		p.OwnerID = remote.OwnerID
-		p.Nounce = remote.Nounce
+		p.Nonce = remote.Nonce
 		p.Signature = remote.Signature
 
 		log.WithFields(log.Fields{
@@ -333,11 +333,11 @@ func (p *ABACPolicy) ComputeDigest() (*crypto.Hash, error) {
 	digestInput := struct {
 		Rules   interface{} `json:"rules"`
 		OwnerID string      `json:"ownerID"`
-		Nounce  string      `json:"nounce"`
+		Nonce  string      `json:"nonce"`
 	}{
 		Rules:   orderedRules,
 		OwnerID: p.OwnerID,
-		Nounce:  p.Nounce,
+		Nonce:  p.Nonce,
 	}
 
 	// Marshal the entire digest input
@@ -402,7 +402,7 @@ func (p *ABACPolicy) PrintPolicy() {
 }
 
 func (p *ABACPolicy) Sign() error {
-	p.Nounce = random.GenerateRandomID()
+	p.Nonce = random.GenerateRandomID()
 
 	digest, err := p.ComputeDigest()
 	if err != nil {

@@ -66,7 +66,7 @@ func TestSecureTreeAdapterSetLiteral(t *testing.T) {
 		assert.Nil(t, err)
 
 		secureNode := aNode.(*AdapterSecureNodeCRDT)
-		assert.NotEmpty(t, secureNode.nodeCrdt.Nounce)
+		assert.NotEmpty(t, secureNode.nodeCrdt.Nonce)
 		assert.NotEmpty(t, secureNode.nodeCrdt.Signature)
 	})
 }
@@ -574,7 +574,7 @@ func TestSecureTreeAdapterMergeABAC(t *testing.T) {
 	prvKey1 := "d6eb959e9aec2e6fdc44b5862b269e987b8a4d6f2baca542d8acaa97ee5e74f6"
 	prvKey2 := "ed26531bac1838e519c2c6562ac717b22aac041730f0d753d3ad35b76b5f4924"
 
-	identity2, err := crypto.CreateIdendityFromString(prvKey2)
+	identity2, err := crypto.CreateIdentityFromString(prvKey2)
 	assert.Nil(t, err)
 
 	c1, err := NewSecureTree(prvKey1)
@@ -632,7 +632,7 @@ func TestSecureTreeAdapterMergeComplexJSONABAC(t *testing.T) {
 	  ]
 	}`)
 
-	identity2, err := crypto.CreateIdendityFromString(prvKey2)
+	identity2, err := crypto.CreateIdentityFromString(prvKey2)
 	assert.Nil(t, err)
 
 	c1, err := NewSecureTree(prvKey1)
@@ -729,10 +729,10 @@ func (t *DummyTree) isDescendant(root NodeID, target NodeID) bool {
 
 func TestABACPolicyMerge_LWW(t *testing.T) {
 	// Setup identities
-	identityA, err := crypto.CreateIdendity()
+	identityA, err := crypto.CreateIdentity()
 	assert.NoError(t, err)
 
-	identityB, err := crypto.CreateIdendity()
+	identityB, err := crypto.CreateIdentity()
 	assert.NoError(t, err)
 
 	ownerA := identityA.ID()

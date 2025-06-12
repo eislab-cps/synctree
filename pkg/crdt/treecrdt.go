@@ -32,8 +32,8 @@ type NodeCRDT struct {
 	IsArray      bool        `json:"isarray"`
 	IsPromoted   bool        `json:"ispromoted"`
 	IsLiteral    bool        `json:"isliteral"`
-	LiteralValue interface{} `json:"litteralValue"`
-	Nounce       string      `json:"nounce"`
+	LiteralValue interface{} `json:"literalValue"`
+	Nonce       string      `json:"nonce"`
 	Signature    string      `json:"signature"`
 	IsDeleted    bool        `json:"deleted"`
 }
@@ -807,7 +807,7 @@ func (c *TreeCRDT) merge(c2 *TreeCRDT, secure bool, prvKey string) error {
 			cloned.Owner = remote.Owner
 			cloned.IsDeleted = remote.IsDeleted
 			cloned.IsRoot = remote.IsRoot
-			cloned.Nounce = remote.Nounce
+			cloned.Nonce = remote.Nonce
 			cloned.Signature = remote.Signature
 			c.Nodes[id] = cloned
 			local = cloned
@@ -818,7 +818,7 @@ func (c *TreeCRDT) merge(c2 *TreeCRDT, secure bool, prvKey string) error {
 
 		if remote.IsLiteral {
 			err := local.setLiteralWithVersion(remote.LiteralValue, remote.Owner, remote.Clock[remote.Owner])
-			local.Nounce = remote.Nounce
+			local.Nonce = remote.Nonce
 			local.Signature = remote.Signature
 			if err != nil {
 				log.WithFields(log.Fields{
@@ -863,7 +863,7 @@ func (c *TreeCRDT) merge(c2 *TreeCRDT, secure bool, prvKey string) error {
 					}).Error("AddEdge failed during promotion")
 				}
 				if secure {
-					identity, err := crypto.CreateIdendityFromString(prvKey)
+					identity, err := crypto.CreateIdentityFromString(prvKey)
 					if err != nil {
 						log.WithFields(log.Fields{
 							"NodeID": fromNode.ID,
@@ -1061,7 +1061,7 @@ func (c *TreeCRDT) cloneNodeFromRemote(c2 *TreeCRDT, id NodeID) {
 	cloned.IsDeleted = remote.IsDeleted
 	cloned.IsRoot = remote.IsRoot
 	cloned.ParentID = remote.ParentID
-	cloned.Nounce = remote.Nounce
+	cloned.Nonce = remote.Nonce
 	cloned.Signature = remote.Signature
 	c.Nodes[id] = cloned
 }
