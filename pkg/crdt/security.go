@@ -22,7 +22,7 @@ type nodeDigest struct {
 	IsMap        bool           `json:"ismap"`
 	IsArray      bool           `json:"isarray"`
 	IsLiteral    bool           `json:"isliteral"`
-	LiteralValue interface{}    `json:"litteralValue"`
+	LiteralValue interface{}    `json:"literalValue"`
 	Nonce       string         `json:"nonce"`
 	IsDeleted    bool           `json:"deleted"`
 }
@@ -58,7 +58,7 @@ func (n *NodeCRDT) ComputeDigest() (*crypto.Hash, error) {
 	encodeField(&buf, "ismap", d.IsMap)
 	encodeField(&buf, "isarray", d.IsArray)
 	encodeField(&buf, "isliteral", d.IsLiteral)
-	encodeField(&buf, "litteralValue", d.LiteralValue)
+	encodeField(&buf, "literalValue", d.LiteralValue)
 	encodeField(&buf, "nonce", d.Nonce)
 	encodeField(&buf, "deleted", d.IsDeleted)
 

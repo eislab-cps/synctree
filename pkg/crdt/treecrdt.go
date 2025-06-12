@@ -32,7 +32,7 @@ type NodeCRDT struct {
 	IsArray      bool        `json:"isarray"`
 	IsPromoted   bool        `json:"ispromoted"`
 	IsLiteral    bool        `json:"isliteral"`
-	LiteralValue interface{} `json:"litteralValue"`
+	LiteralValue interface{} `json:"literalValue"`
 	Nonce       string      `json:"nonce"`
 	Signature    string      `json:"signature"`
 	IsDeleted    bool        `json:"deleted"`
