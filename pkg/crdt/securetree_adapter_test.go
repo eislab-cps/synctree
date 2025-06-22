@@ -20,9 +20,9 @@ func TestSecureTreeAdapterBasic(t *testing.T) {
 
 	aNode, err := c.GetNodeByPath("/0")
 	assert.Nil(t, err, "GetNodeByPath should not return an error")
-	err = aNode.SetLiteral("AA", prvKeyInvalid)
+	_, err = aNode.SetLiteral("AA", prvKeyInvalid)
 	assert.NotNil(t, err, "SetLiteral should return an error for invalid private key")
-	err = aNode.SetLiteral("AA", prvKey)
+	_, err = aNode.SetLiteral("AA", prvKey)
 	assert.Nil(t, err, "SetLiteral should not return an error")
 
 	exportedJSON, err := c.ExportJSON()
@@ -53,7 +53,7 @@ func TestSecureTreeAdapterSetLiteral(t *testing.T) {
 		aNode, err := c.GetNodeByPath("/0")
 		assert.Nil(t, err)
 
-		err = aNode.SetLiteral("AA", prvKeyInvalid)
+		_, err = aNode.SetLiteral("AA", prvKeyInvalid)
 		assert.NotNil(t, err)
 		assert.Contains(t, err.Error(), "not allowed")
 	})
@@ -62,7 +62,7 @@ func TestSecureTreeAdapterSetLiteral(t *testing.T) {
 		aNode, err := c.GetNodeByPath("/0")
 		assert.Nil(t, err)
 
-		err = aNode.SetLiteral("AA", prvKey)
+		_, err = aNode.SetLiteral("AA", prvKey)
 		assert.Nil(t, err)
 
 		secureNode := aNode.(*AdapterSecureNodeCRDT)
@@ -83,13 +83,13 @@ func TestSecureTreeAdapterCreateMapNode(t *testing.T) {
 	secureNode := root.(*AdapterSecureNodeCRDT)
 
 	t.Run("Reject CreateMapNode with invalid key", func(t *testing.T) {
-		_, err := secureNode.CreateMapNode(prvKeyInvalid)
+		_, _, err := secureNode.CreateMapNode(prvKeyInvalid)
 		assert.NotNil(t, err)
 		assert.Contains(t, err.Error(), "not allowed")
 	})
 
 	t.Run("Allow CreateMapNode with valid key", func(t *testing.T) {
-		mapNode, err := secureNode.CreateMapNode(prvKey)
+		_, mapNode, err := secureNode.CreateMapNode(prvKey)
 		assert.Nil(t, err)
 
 		_, ok := mapNode.(*AdapterSecureNodeCRDT)
@@ -107,17 +107,17 @@ func TestSecureTreeAdapterSetKeyValue(t *testing.T) {
 	// Get the root node and create a map node under it
 	root, err := c.GetNodeByPath("/")
 	assert.Nil(t, err)
-	mapNode, err := root.(*AdapterSecureNodeCRDT).CreateMapNode(prvKey)
+	_, mapNode, err := root.(*AdapterSecureNodeCRDT).CreateMapNode(prvKey)
 	assert.Nil(t, err)
 
 	t.Run("Reject SetKeyValue on map node with invalid key", func(t *testing.T) {
-		_, err := mapNode.SetKeyValue("someKey", "someValue", prvKeyInvalid)
+		_, _, err := mapNode.SetKeyValue("someKey", "someValue", prvKeyInvalid)
 		assert.NotNil(t, err)
 		assert.Contains(t, err.Error(), "not allowed")
 	})
 
 	t.Run("Allow SetKeyValue on map node with valid key", func(t *testing.T) {
-		nodeID, err := mapNode.SetKeyValue("someKey", "someValue", prvKey)
+		_, nodeID, err := mapNode.SetKeyValue("someKey", "someValue", prvKey)
 		assert.Nil(t, err)
 		assert.NotEmpty(t, nodeID)
 
@@ -138,20 +138,20 @@ func TestSecureTreeAdapterRemoveKeyValue(t *testing.T) {
 	// Create map node under root and add a key-value
 	root, err := c.GetNodeByPath("/")
 	assert.Nil(t, err)
-	mapNode, err := root.(*AdapterSecureNodeCRDT).CreateMapNode(prvKey)
+	_, mapNode, err := root.(*AdapterSecureNodeCRDT).CreateMapNode(prvKey)
 	assert.Nil(t, err)
 
-	_, err = mapNode.SetKeyValue("keyToRemove", "value", prvKey)
+	_, _, err = mapNode.SetKeyValue("keyToRemove", "value", prvKey)
 	assert.Nil(t, err)
 
 	t.Run("Reject RemoveKeyValue with invalid key", func(t *testing.T) {
-		err := mapNode.RemoveKeyValue("keyToRemove", prvKeyInvalid)
+		_, err := mapNode.RemoveKeyValue("keyToRemove", prvKeyInvalid)
 		assert.NotNil(t, err)
 		assert.Contains(t, err.Error(), "not allowed")
 	})
 
 	t.Run("Allow RemoveKeyValue with valid key", func(t *testing.T) {
-		err := mapNode.RemoveKeyValue("keyToRemove", prvKey)
+		_, err := mapNode.RemoveKeyValue("keyToRemove", prvKey)
 		assert.Nil(t, err)
 
 		// Confirm the key no longer exists
@@ -170,18 +170,18 @@ func TestSecureTreeAdapterCreateAttachedNode(t *testing.T) {
 	// Create a parent map node under root
 	root, err := c.GetNodeByPath("/")
 	assert.Nil(t, err)
-	parentNode, err := root.(*AdapterSecureNodeCRDT).CreateMapNode(prvKey)
+	_, parentNode, err := root.(*AdapterSecureNodeCRDT).CreateMapNode(prvKey)
 	assert.Nil(t, err)
 	parentID := parentNode.(*AdapterSecureNodeCRDT).nodeCrdt.ID
 
 	t.Run("Reject CreateAttachedNode with invalid key", func(t *testing.T) {
-		_, err := c.CreateAttachedNode("child", Literal, parentID, prvKeyInvalid)
+		_, _, err := c.CreateAttachedNode("child", Literal, parentID, prvKeyInvalid)
 		assert.NotNil(t, err)
 		assert.Contains(t, err.Error(), "not allowed")
 	})
 
 	t.Run("Allow CreateAttachedNode with valid key", func(t *testing.T) {
-		childNode, err := c.CreateAttachedNode("child", Map, parentID, prvKey)
+		_, childNode, err := c.CreateAttachedNode("child", Map, parentID, prvKey)
 		assert.Nil(t, err)
 		assert.NotNil(t, childNode)
 	})
@@ -195,12 +195,12 @@ func TestSecureTreeAdapterCreateNode(t *testing.T) {
 	assert.Nil(t, err)
 
 	t.Run("Reject CreateNode with invalid key", func(t *testing.T) {
-		_, err := c.CreateNode("myNode", Map, prvKeyInvalid)
+		_, _, err := c.CreateNode("myNode", Map, prvKeyInvalid)
 		assert.Nil(t, err) // This is actually ok, as long as the node is not attached to the tree
 	})
 
 	t.Run("Allow CreateNode with valid key", func(t *testing.T) {
-		node, err := c.CreateNode("myNode", Map, prvKey)
+		_, node, err := c.CreateNode("myNode", Map, prvKey)
 		assert.Nil(t, err)
 		assert.NotNil(t, node)
 	})
@@ -217,23 +217,23 @@ func TestSecureTreeAdapterAddEdge(t *testing.T) {
 	root, err := c.GetNodeByPath("/")
 	assert.Nil(t, err)
 
-	fromNode, err := root.(*AdapterSecureNodeCRDT).CreateMapNode(prvKey)
+	_, fromNode, err := root.(*AdapterSecureNodeCRDT).CreateMapNode(prvKey)
 	assert.Nil(t, err)
 	fromNodeID := fromNode.(*AdapterSecureNodeCRDT).nodeCrdt.ID
 
 	// Create toNode as detached node (not attached to root)
-	toNode, err := c.CreateNode("detachedNode", Map, prvKey)
+	_, toNode, err := c.CreateNode("detachedNode", Map, prvKey)
 	assert.Nil(t, err)
 	toNodeID := toNode.(*AdapterSecureNodeCRDT).nodeCrdt.ID
 
 	t.Run("Reject AddEdge with invalid key", func(t *testing.T) {
-		err := c.AddEdge(fromNodeID, toNodeID, "edgeLabel", prvKeyInvalid)
+		_, err := c.AddEdge(fromNodeID, toNodeID, "edgeLabel", prvKeyInvalid)
 		assert.NotNil(t, err)
 		assert.Contains(t, err.Error(), "not allowed")
 	})
 
 	t.Run("Allow AddEdge with valid key", func(t *testing.T) {
-		err := c.AddEdge(fromNodeID, toNodeID, "edgeLabel", prvKey)
+		_, err := c.AddEdge(fromNodeID, toNodeID, "edgeLabel", prvKey)
 		assert.Nil(t, err)
 	})
 }
@@ -249,27 +249,27 @@ func TestSecureTreeAdapterRemoveEdge(t *testing.T) {
 	root, err := c.GetNodeByPath("/")
 	assert.Nil(t, err)
 
-	fromNode, err := root.(*AdapterSecureNodeCRDT).CreateMapNode(prvKey)
+	_, fromNode, err := root.(*AdapterSecureNodeCRDT).CreateMapNode(prvKey)
 	assert.Nil(t, err)
 	fromNodeID := fromNode.(*AdapterSecureNodeCRDT).nodeCrdt.ID
 
 	// Create toNode as detached node
-	toNode, err := c.CreateNode("detachedNode", Map, prvKey)
+	_, toNode, err := c.CreateNode("detachedNode", Map, prvKey)
 	assert.Nil(t, err)
 	toNodeID := toNode.(*AdapterSecureNodeCRDT).nodeCrdt.ID
 
 	// First: Add the edge (valid)
-	err = c.AddEdge(fromNodeID, toNodeID, "edgeLabel", prvKey)
+	_, err = c.AddEdge(fromNodeID, toNodeID, "edgeLabel", prvKey)
 	assert.Nil(t, err)
 
 	t.Run("Reject RemoveEdge with invalid key", func(t *testing.T) {
-		err := c.RemoveEdge(fromNodeID, toNodeID, prvKeyInvalid)
+		_, err := c.RemoveEdge(fromNodeID, toNodeID, prvKeyInvalid)
 		assert.NotNil(t, err)
 		assert.Contains(t, err.Error(), "not allowed")
 	})
 
 	t.Run("Allow RemoveEdge with valid key", func(t *testing.T) {
-		err := c.RemoveEdge(fromNodeID, toNodeID, prvKey)
+		_, err := c.RemoveEdge(fromNodeID, toNodeID, prvKey)
 		assert.Nil(t, err)
 	})
 }
@@ -285,23 +285,23 @@ func TestSecureTreeAdapterAppendEdge(t *testing.T) {
 	root, err := c.GetNodeByPath("/")
 	assert.Nil(t, err)
 
-	fromNode, err := root.(*AdapterSecureNodeCRDT).CreateMapNode(prvKey)
+	_, fromNode, err := root.(*AdapterSecureNodeCRDT).CreateMapNode(prvKey)
 	assert.Nil(t, err)
 	fromNodeID := fromNode.(*AdapterSecureNodeCRDT).nodeCrdt.ID
 
 	// Create toNode as detached node
-	toNode, err := c.CreateNode("detachedNode", Map, prvKey)
+	_, toNode, err := c.CreateNode("detachedNode", Map, prvKey)
 	assert.Nil(t, err)
 	toNodeID := toNode.(*AdapterSecureNodeCRDT).nodeCrdt.ID
 
 	t.Run("Reject AppendEdge with invalid key", func(t *testing.T) {
-		err := c.AppendEdge(fromNodeID, toNodeID, "edgeLabel", prvKeyInvalid)
+		_, err := c.AppendEdge(fromNodeID, toNodeID, "edgeLabel", prvKeyInvalid)
 		assert.NotNil(t, err)
 		assert.Contains(t, err.Error(), "not allowed")
 	})
 
 	t.Run("Allow AppendEdge with valid key", func(t *testing.T) {
-		err := c.AppendEdge(fromNodeID, toNodeID, "edgeLabel", prvKey)
+		_, err := c.AppendEdge(fromNodeID, toNodeID, "edgeLabel", prvKey)
 		assert.Nil(t, err)
 	})
 }
@@ -317,23 +317,23 @@ func TestSecureTreeAdapterPrependEdge(t *testing.T) {
 	root, err := c.GetNodeByPath("/")
 	assert.Nil(t, err)
 
-	fromNode, err := root.(*AdapterSecureNodeCRDT).CreateMapNode(prvKey)
+	_, fromNode, err := root.(*AdapterSecureNodeCRDT).CreateMapNode(prvKey)
 	assert.Nil(t, err)
 	fromNodeID := fromNode.(*AdapterSecureNodeCRDT).nodeCrdt.ID
 
 	// Create toNode as detached node
-	toNode, err := c.CreateNode("detachedNode", Map, prvKey)
+	_, toNode, err := c.CreateNode("detachedNode", Map, prvKey)
 	assert.Nil(t, err)
 	toNodeID := toNode.(*AdapterSecureNodeCRDT).nodeCrdt.ID
 
 	t.Run("Reject PrependEdge with invalid key", func(t *testing.T) {
-		err := c.PrependEdge(fromNodeID, toNodeID, "edgeLabel", prvKeyInvalid)
+		_, err := c.PrependEdge(fromNodeID, toNodeID, "edgeLabel", prvKeyInvalid)
 		assert.NotNil(t, err)
 		assert.Contains(t, err.Error(), "not allowed")
 	})
 
 	t.Run("Allow PrependEdge with valid key", func(t *testing.T) {
-		err := c.PrependEdge(fromNodeID, toNodeID, "edgeLabel", prvKey)
+		_, err := c.PrependEdge(fromNodeID, toNodeID, "edgeLabel", prvKey)
 		assert.Nil(t, err)
 	})
 }
@@ -349,32 +349,32 @@ func TestSecureTreeAdapterInsertEdgeLeft(t *testing.T) {
 	root, err := c.GetNodeByPath("/")
 	assert.Nil(t, err)
 
-	fromNode, err := root.(*AdapterSecureNodeCRDT).CreateMapNode(prvKey)
+	_, fromNode, err := root.(*AdapterSecureNodeCRDT).CreateMapNode(prvKey)
 	assert.Nil(t, err)
 	fromNodeID := fromNode.(*AdapterSecureNodeCRDT).nodeCrdt.ID
 
 	// Create sibling node (first edge)
-	siblingNode, err := c.CreateNode("siblingNode", Map, prvKey)
+	_, siblingNode, err := c.CreateNode("siblingNode", Map, prvKey)
 	assert.Nil(t, err)
 	siblingNodeID := siblingNode.(*AdapterSecureNodeCRDT).nodeCrdt.ID
 
 	// Add sibling edge first
-	err = c.AppendEdge(fromNodeID, siblingNodeID, "edgeLabel", prvKey)
+	_, err = c.AppendEdge(fromNodeID, siblingNodeID, "edgeLabel", prvKey)
 	assert.Nil(t, err)
 
 	// Create toNode (node we want to insert to the left of sibling)
-	toNode, err := c.CreateNode("toNode", Map, prvKey)
+	_, toNode, err := c.CreateNode("toNode", Map, prvKey)
 	assert.Nil(t, err)
 	toNodeID := toNode.(*AdapterSecureNodeCRDT).nodeCrdt.ID
 
 	t.Run("Reject InsertEdgeLeft with invalid key", func(t *testing.T) {
-		err := c.InsertEdgeLeft(fromNodeID, toNodeID, "edgeLabel", siblingNodeID, prvKeyInvalid)
+		_, err := c.InsertEdgeLeft(fromNodeID, toNodeID, "edgeLabel", siblingNodeID, prvKeyInvalid)
 		assert.NotNil(t, err)
 		assert.Contains(t, err.Error(), "not allowed")
 	})
 
 	t.Run("Allow InsertEdgeLeft with valid key", func(t *testing.T) {
-		err := c.InsertEdgeLeft(fromNodeID, toNodeID, "edgeLabel", siblingNodeID, prvKey)
+		_, err := c.InsertEdgeLeft(fromNodeID, toNodeID, "edgeLabel", siblingNodeID, prvKey)
 		assert.Nil(t, err)
 	})
 }
@@ -390,32 +390,32 @@ func TestSecureTreeAdapterInsertEdgeRight(t *testing.T) {
 	root, err := c.GetNodeByPath("/")
 	assert.Nil(t, err)
 
-	fromNode, err := root.(*AdapterSecureNodeCRDT).CreateMapNode(prvKey)
+	_, fromNode, err := root.(*AdapterSecureNodeCRDT).CreateMapNode(prvKey)
 	assert.Nil(t, err)
 	fromNodeID := fromNode.(*AdapterSecureNodeCRDT).nodeCrdt.ID
 
 	// Create sibling node (first edge)
-	siblingNode, err := c.CreateNode("siblingNode", Map, prvKey)
+	_, siblingNode, err := c.CreateNode("siblingNode", Map, prvKey)
 	assert.Nil(t, err)
 	siblingNodeID := siblingNode.(*AdapterSecureNodeCRDT).nodeCrdt.ID
 
 	// Add sibling edge first
-	err = c.AppendEdge(fromNodeID, siblingNodeID, "edgeLabel", prvKey)
+	_, err = c.AppendEdge(fromNodeID, siblingNodeID, "edgeLabel", prvKey)
 	assert.Nil(t, err)
 
 	// Create toNode (node we want to insert to the right of sibling)
-	toNode, err := c.CreateNode("toNode", Map, prvKey)
+	_, toNode, err := c.CreateNode("toNode", Map, prvKey)
 	assert.Nil(t, err)
 	toNodeID := toNode.(*AdapterSecureNodeCRDT).nodeCrdt.ID
 
 	t.Run("Reject InsertEdgeRight with invalid key", func(t *testing.T) {
-		err := c.InsertEdgeRight(fromNodeID, toNodeID, "edgeLabel", siblingNodeID, prvKeyInvalid)
+		_, err := c.InsertEdgeRight(fromNodeID, toNodeID, "edgeLabel", siblingNodeID, prvKeyInvalid)
 		assert.NotNil(t, err)
 		assert.Contains(t, err.Error(), "not allowed")
 	})
 
 	t.Run("Allow InsertEdgeRight with valid key", func(t *testing.T) {
-		err := c.InsertEdgeRight(fromNodeID, toNodeID, "edgeLabel", siblingNodeID, prvKey)
+		_, err := c.InsertEdgeRight(fromNodeID, toNodeID, "edgeLabel", siblingNodeID, prvKey)
 		assert.Nil(t, err)
 	})
 }
@@ -466,7 +466,7 @@ func TestSecureTreeAdapterImportJSONToMap(t *testing.T) {
 	root, err := c.GetNodeByPath("/")
 	assert.Nil(t, err)
 
-	parentMapNode, err := root.(*AdapterSecureNodeCRDT).CreateMapNode(prvKey)
+	_, parentMapNode, err := root.(*AdapterSecureNodeCRDT).CreateMapNode(prvKey)
 	assert.Nil(t, err)
 	parentID := parentMapNode.(*AdapterSecureNodeCRDT).nodeCrdt.ID
 
@@ -500,18 +500,18 @@ func TestSecureTreeAdapterImportJSONToArray(t *testing.T) {
 	root, err := c.GetNodeByPath("/")
 	assert.Nil(t, err)
 
-	parentArrayNode, err := root.(*AdapterSecureNodeCRDT).CreateMapNode(prvKey)
+	_, parentArrayNode, err := root.(*AdapterSecureNodeCRDT).CreateMapNode(prvKey)
 	assert.Nil(t, err)
 
 	// Now under parentArrayNode, add an array key
 	parentID := parentArrayNode.(*AdapterSecureNodeCRDT).nodeCrdt.ID
 
-	arrayNode, err := c.CreateNode("arrayKey", Array, prvKey)
+	_, arrayNode, err := c.CreateNode("arrayKey", Array, prvKey)
 	assert.Nil(t, err)
 	arrayNodeID := arrayNode.(*AdapterSecureNodeCRDT).nodeCrdt.ID
 
 	// Link the array node under parent map node
-	err = c.AppendEdge(parentID, arrayNodeID, "arrayKey", prvKey)
+	_, err = c.AppendEdge(parentID, arrayNodeID, "arrayKey", prvKey)
 	assert.Nil(t, err)
 
 	// Example array JSON
@@ -552,7 +552,7 @@ func TestSecureTreeAdapterMerge(t *testing.T) {
 	mapNode, err := c2.GetNodeByPath("/")
 	assert.Nil(t, err)
 
-	valueNodeID, err := mapNode.SetKeyValue("newKey", "newValue", prvKey)
+	_, valueNodeID, err := mapNode.SetKeyValue("newKey", "newValue", prvKey)
 	valueNode, ok := c2.GetNode(valueNodeID)
 	assert.True(t, ok, "GetNode should return the node")
 	assert.NotNil(t, valueNode, "valueNode should not be nil")
@@ -592,12 +592,12 @@ func TestSecureTreeAdapterMergeABAC(t *testing.T) {
 	mapNode, err := c2.GetNodeByPath("/")
 	assert.Nil(t, err)
 
-	valueNodeID, err := mapNode.SetKeyValue("newKey", "newValue", prvKey2)
+	_, valueNodeID, err := mapNode.SetKeyValue("newKey", "newValue", prvKey2)
 	assert.Error(t, err, "SetKeyValue should return an error for prvKey2 since identity2 is not allowed to modify the root node")
 
 	c2.ABAC().Allow(identity2.ID(), ActionModify, "root", true)
 
-	valueNodeID, err = mapNode.SetKeyValue("newKey", "newValue", prvKey2)
+	_, valueNodeID, err = mapNode.SetKeyValue("newKey", "newValue", prvKey2)
 	assert.NoError(t, err, "SetKeyValue should not return an error for prvKey2")
 
 	valueNode, ok := c2.GetNode(valueNodeID)
@@ -716,7 +716,7 @@ func TestSecureTreeAdapterSave(t *testing.T) {
 	// Try to add map key value
 	mapNode, err := hackedC3.GetNodeByPath("/1")
 	assert.Nil(t, err, "GetNodeByPath should not return an error")
-	_, err = mapNode.SetKeyValue("newKey", "newValue", "ff4d4028f7a41edca91c01d17da4c4c3edb18950ac98b465cb918ad5362c5bdc")
+	_, _, err = mapNode.SetKeyValue("newKey", "newValue", "ff4d4028f7a41edca91c01d17da4c4c3edb18950ac98b465cb918ad5362c5bdc")
 	assert.NotNil(t, err, "SetKeyValue should not return an error when modifying ABAC rules")
 }
 
@@ -831,7 +831,7 @@ func TestSecureTreeSetLiteralt(t *testing.T) {
 	node, err := c2.GetNodeByPath("/friends/0/name")
 	assert.Nil(t, err, "Failed to get node by path")
 
-	err = node.SetLiteral("Johan2", prvKey)
+	_, err = node.SetLiteral("Johan2", prvKey)
 	assert.Nil(t, err, "Failed to set literal on node")
 
 	err = c.Merge(c2, prvKey)

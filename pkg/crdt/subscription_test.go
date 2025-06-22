@@ -1,7 +1,6 @@
 package crdt
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -37,7 +36,6 @@ func TestSecureTreeAdapterSubscribe(t *testing.T) {
 	_, err = c.ImportJSON(json, prvKey)
 	assert.Nil(t, err, "ImportJSON should not return an error")
 
-	// / Map
 	// /friends Array
 	// /friends/0 Map
 	// /friends/1 Map
@@ -49,10 +47,9 @@ func TestSecureTreeAdapterSubscribe(t *testing.T) {
 	events := make(chan NodeEvent, 10)
 	c.Subscribe("/", events)
 
-	fmt.Println("----------------------")
 	node, err := c.GetNodeByPath("/friends/1/name")
 	assert.Nil(t, err, "GetNodeByPath should not return an error")
-	err = node.SetLiteral("Robert", prvKey)
+	_, err = node.SetLiteral("Robert", prvKey)
 	assert.Nil(t, err, "SetLiteral should not return an error")
 
 	event := <-events
@@ -88,7 +85,7 @@ func TestSecureTreeAdapterSubscribe_ArrayElement(t *testing.T) {
 
 	node, err := c.GetNodeByPath("/friends/0/name")
 	assert.Nil(t, err)
-	err = node.SetLiteral("Bobby", prvKey)
+	_, err = node.SetLiteral("Bobby", prvKey)
 	assert.Nil(t, err)
 
 	event := <-events
@@ -130,7 +127,7 @@ func TestSecureTreeAdapterSubscribe_DeepNested(t *testing.T) {
 
 	node, err := c.GetNodeByPath("/friends/1/friends/0/name")
 	assert.Nil(t, err)
-	err = node.SetLiteral("Daniela", prvKey)
+	_, err = node.SetLiteral("Daniela", prvKey)
 	assert.Nil(t, err)
 
 	event := <-events
@@ -156,7 +153,7 @@ func TestSecureTreeAdapterSubscribe_ExactPath(t *testing.T) {
 
 	node, err := c.GetNodeByPath("/name")
 	assert.Nil(t, err)
-	err = node.SetLiteral("Alicia", prvKey)
+	_, err = node.SetLiteral("Alicia", prvKey)
 	assert.Nil(t, err)
 
 	event := <-events
@@ -192,7 +189,7 @@ func TestSecureTreeAdapterSubscribe_Subpath_MultipleEvents(t *testing.T) {
 
 	node1, err := c.GetNodeByPath("/friends/1/name")
 	assert.Nil(t, err)
-	err = node1.SetLiteral("Charles", prvKey)
+	_, err = node1.SetLiteral("Charles", prvKey)
 	assert.Nil(t, err)
 
 	event := <-events
