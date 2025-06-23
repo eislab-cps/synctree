@@ -1,10 +1,11 @@
 package cli
 
 import (
+	"os"
+
 	"github.com/eislab-cps/synctree/pkg/crdt"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"os"
 )
 
 func init() {
@@ -147,7 +148,7 @@ var setLiteralCmd = &cobra.Command{
 		node, err := c.GetNodeByPath(NodePath)
 		CheckError(err)
 
-		err = node.SetLiteral(LiteralValue, PrvKey)
+		_, err = node.SetLiteral(LiteralValue, PrvKey)
 		CheckError(err)
 
 		savedData, err := c.Save()
