@@ -83,7 +83,7 @@ func TestTreeCRDTSetFieldsConflictLastWriterWins(t *testing.T) {
 	mapNodeC1, err := rootC1.CreateMapNode(clientID1)
 	assert.NoError(t, err, "CreateMapNode should not return an error")
 
-	_, err = mapNodeC1.SetKeyValue("key", "value1", clientID1)
+	_, _, err = mapNodeC1.SetKeyValue("key", "value1", clientID1)
 	assert.NoError(t, err, "SetKeyValue should not return an error")
 
 	c2, err := c1.Clone()
@@ -92,13 +92,13 @@ func TestTreeCRDTSetFieldsConflictLastWriterWins(t *testing.T) {
 	mapNodeC2, ok := c2.GetNode(mapNodeC1.ID)
 	assert.True(t, ok, "Node should exist in cloned graph")
 
-	_, err = mapNodeC2.SetKeyValue("key", "value2", clientID2)
+	_, _, err = mapNodeC2.SetKeyValue("key", "value2", clientID2)
 	assert.NoError(t, err, "SetKeyValue should not return an error")
 
-	_, err = mapNodeC2.SetKeyValue("key", "value3", clientID2)
+	_, _, err = mapNodeC2.SetKeyValue("key", "value3", clientID2)
 	assert.NoError(t, err, "SetKeyValue should not return an error")
 
-	_, err = mapNodeC1.SetKeyValue("key", "value4", clientID1) // Will be overwritten by c2
+	_, _, err = mapNodeC1.SetKeyValue("key", "value4", clientID1) // Will be overwritten by c2
 	assert.NoError(t, err, "SetKeyValue should not return an error")
 
 	err = c1.Merge(c2)
@@ -124,7 +124,7 @@ func TestTreeCRDTSetFieldsConflictNodeIDTieBraker(t *testing.T) {
 	mapNodeC1, err := rootC1.CreateMapNode(clientID1)
 	assert.NoError(t, err, "CreateMapNode should not return an error")
 
-	_, err = mapNodeC1.SetKeyValue("key", "value1", clientID1)
+	_, _, err = mapNodeC1.SetKeyValue("key", "value1", clientID1)
 	assert.NoError(t, err, "SetKeyValue should not return an error")
 
 	c2, err := c1.Clone()
@@ -133,11 +133,11 @@ func TestTreeCRDTSetFieldsConflictNodeIDTieBraker(t *testing.T) {
 	mapNodeC2, ok := c2.GetNode(mapNodeC1.ID)
 	assert.True(t, ok, "Node should exist in cloned graph")
 
-	_, err = mapNodeC2.SetKeyValue("key", "value2", clientID2)
+	_, _, err = mapNodeC2.SetKeyValue("key", "value2", clientID2)
 	assert.NoError(t, err, "SetKeyValue should not return an error")
 
 	// Conflict, both clients have the same vector clock version
-	_, err = mapNodeC1.SetKeyValue("key", "value3", clientID1)
+	_, _, err = mapNodeC1.SetKeyValue("key", "value3", clientID1)
 	assert.NoError(t, err, "SetKeyValue should not return an error")
 
 	err = c1.Merge(c2) // Enable conflict resolution with tie-breaker
@@ -164,10 +164,10 @@ func TestTreeCRDTNodeRemoveField(t *testing.T) {
 	mapNode, err := c.Root.CreateMapNode(clientID)
 	assert.NoError(t, err, "CreateMapNode should not return an error")
 
-	_, err = mapNode.SetKeyValue("key1", "value1", clientID)
+	_, _, err = mapNode.SetKeyValue("key1", "value1", clientID)
 	assert.NoError(t, err, "SetKeyValue should not return an error")
 
-	_, err = mapNode.SetKeyValue("key2", "value1", clientID)
+	_, _, err = mapNode.SetKeyValue("key2", "value1", clientID)
 	assert.NoError(t, err, "SetKeyValue should not return an error")
 
 	valueNode, found, err := mapNode.GetNodeForKey("key1")
@@ -505,9 +505,9 @@ func TestTreeCRDTMergeLitterals(t *testing.T) {
 	// Create shared nodes in both graphs
 	node1 := c1.CreateAttachedNode("sharedA", Literal, c1.Root.ID, clientA)
 	node2 := c2.CreateAttachedNode("sharedB", Literal, c2.Root.ID, clientB)
-	err := node1.SetLiteral("A-literal", clientA)
+	_, err := node1.SetLiteral("A-literal", clientA)
 	assert.Nil(t, err, "SetLiteral should not return an error")
-	err = node2.SetLiteral("B-literal", clientB)
+	_, err = node2.SetLiteral("B-literal", clientB)
 	assert.Nil(t, err, "SetLiteral should not return an error")
 
 	c1Copy, err := c1.Clone()
@@ -710,8 +710,8 @@ func TestTreeCRDTMergeKVListsWithConflicts(t *testing.T) {
 
 	assert.True(t, ok, "Array node should exist in c1")
 
-	_, err = mapNode.SetKeyValue("value", "11", clientA)
-	_, err = mapNode.SetKeyValue("value", "22", clientA)
+	_, _, err = mapNode.SetKeyValue("value", "11", clientA)
+	_, _, err = mapNode.SetKeyValue("value", "22", clientA)
 
 	json, err := c1.ExportJSON()
 	assert.Nil(t, err, "ExportToJSON should not return an error")
@@ -724,7 +724,7 @@ func TestTreeCRDTMergeKVListsWithConflicts(t *testing.T) {
 	assert.True(t, ok, "Map node should exist in c2")
 
 	// Set a different value in c2
-	_, err = mapNode2.SetKeyValue("value", "33", clientB) // <- Should we overwriting, according to last writer wins policy
+	_, _, err = mapNode2.SetKeyValue("value", "33", clientB) // <- Should we overwriting, according to last writer wins policy
 	assert.Nil(t, err, "SetKeyValue should not return an error")
 
 	err = c1.Merge(c2) // Enable conflict resolution with last writer wins

@@ -17,11 +17,11 @@ func performSecureAction(
 	action ABACAction,
 	target NodeID,
 	abac *ABACPolicy,
-	actionFn func(ClientID) (*Delta, *NodeCRDT, error),
-) (*Delta, error) {
+	actionFn func(ClientID) (Mutation, *NodeCRDT, error),
+) (Mutation, error) {
 	identity, err := crypto.CreateIdendityFromString(prvKey)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create identity: %w", err)
+		return Mutation{}, fmt.Errorf("failed to create identity: %w", err)
 	}
 
 	id := identity.ID()
@@ -33,46 +33,47 @@ func performSecureAction(
 				"Action": action,
 				"Target": target,
 			}).Error("Not allowed to perform action on target")
-			return nil, fmt.Errorf("identity %s not allowed to perform %s on %s", id, action, target)
+			return Mutation{}, fmt.Errorf("identity %s not allowed to perform %s on %s", id, action, target)
 		}
 	}
 
-	delta, node, err := actionFn(ClientID(id))
+	mut, node, err := actionFn(ClientID(id))
 	if err != nil {
-		return nil, err
+		return Mutation{}, err
 	}
 
 	err = node.Sign(identity)
 	if err != nil {
-		return nil, fmt.Errorf("failed to sign node: %w", err)
+		return Mutation{}, fmt.Errorf("failed to sign node: %w", err)
 	}
 
 	// TODO: This is only required if the parent node was modified.
 	if node.ParentID != "" {
 		parentNode, ok := node.tree.GetNode(node.ParentID)
 		if !ok {
-			return nil, fmt.Errorf("parent node %s not found for node %s", node.ParentID, node.ID)
+			return Mutation{}, fmt.Errorf("parent node %s not found for node %s", node.ParentID, node.ID)
 		}
 
 		// Sign the parent node with the same identity
 		if err := parentNode.Sign(identity); err != nil {
-			return nil, fmt.Errorf("failed to sign parent node: %w", err)
+			return Mutation{}, fmt.Errorf("failed to sign parent node: %w", err)
 		}
 	}
 
-	return delta, nil
+	return mut, nil
 }
 
 func (n *AdapterSecureNodeCRDT) ID() NodeID {
 	return n.nodeCrdt.ID
 }
 
-func (n *AdapterSecureNodeCRDT) SetLiteral(value interface{}, prvKey string) (*Delta, error) {
-	secureAction := func(clientID ClientID) (*Delta, *NodeCRDT, error) {
-		if err := n.nodeCrdt.SetLiteral(value, clientID); err != nil {
-			return nil, nil, fmt.Errorf("failed to set literal: %w", err)
+func (n *AdapterSecureNodeCRDT) SetLiteral(value interface{}, prvKey string) (Mutation, error) {
+	secureAction := func(clientID ClientID) (Mutation, *NodeCRDT, error) {
+		mut, err := n.nodeCrdt.SetLiteral(value, clientID)
+		if err != nil {
+			return Mutation{}, nil, fmt.Errorf("failed to set literal: %w", err)
 		}
-		return nil, n.nodeCrdt, nil
+		return mut, n.nodeCrdt, nil
 	}
 
 	accessControl := true
@@ -93,16 +94,16 @@ func (n *AdapterSecureNodeCRDT) GetLiteral() (interface{}, error) {
 	return n.nodeCrdt.GetLiteral()
 }
 
-func (n *AdapterSecureNodeCRDT) CreateMapNode(prvKey string) (*Delta, SecureNode, error) {
+func (n *AdapterSecureNodeCRDT) CreateMapNode(prvKey string) (Mutation, SecureNode, error) {
 	var newNode *NodeCRDT
 
-	secureAction := func(clientID ClientID) (*Delta, *NodeCRDT, error) {
+	secureAction := func(clientID ClientID) (Mutation, *NodeCRDT, error) {
 		node, err := n.nodeCrdt.CreateMapNode(clientID)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to create map node: %w", err)
+			return Mutation{}, nil, fmt.Errorf("failed to create map node: %w", err)
 		}
 		newNode = node
-		return nil, newNode, nil
+		return Mutation{}, newNode, nil
 	}
 
 	delta, err := performSecureAction(
@@ -113,29 +114,29 @@ func (n *AdapterSecureNodeCRDT) CreateMapNode(prvKey string) (*Delta, SecureNode
 		n.nodeCrdt.tree.ABACPolicy,
 		secureAction)
 	if err != nil {
-		return nil, nil, err
+		return Mutation{}, nil, err
 	}
 
 	return delta, &AdapterSecureNodeCRDT{nodeCrdt: newNode}, nil
 }
 
-func (n *AdapterSecureNodeCRDT) SetKeyValue(key string, value interface{}, prvKey string) (*Delta, NodeID, error) {
+func (n *AdapterSecureNodeCRDT) SetKeyValue(key string, value interface{}, prvKey string) (Mutation, NodeID, error) {
 	var newNodeID NodeID
 
-	secureAction := func(clientID ClientID) (*Delta, *NodeCRDT, error) {
-		id, err := n.nodeCrdt.SetKeyValue(key, value, clientID)
+	secureAction := func(clientID ClientID) (Mutation, *NodeCRDT, error) {
+		_, id, err := n.nodeCrdt.SetKeyValue(key, value, clientID)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to set key-value: %w", err)
+			return Mutation{}, nil, fmt.Errorf("failed to set key-value: %w", err)
 		}
 		newNodeID = id
 		newNode, ok := n.nodeCrdt.tree.GetNode(newNodeID)
 		if !ok {
-			return nil, nil, fmt.Errorf("new node %s not found in tree after setting key-value", newNodeID)
+			return Mutation{}, nil, fmt.Errorf("new node %s not found in tree after setting key-value", newNodeID)
 		}
-		return nil, newNode, nil
+		return Mutation{}, newNode, nil
 	}
 
-	delta, err := performSecureAction(
+	mut, err := performSecureAction(
 		true,
 		prvKey,
 		ActionModify,
@@ -143,10 +144,10 @@ func (n *AdapterSecureNodeCRDT) SetKeyValue(key string, value interface{}, prvKe
 		n.nodeCrdt.tree.ABACPolicy,
 		secureAction)
 	if err != nil {
-		return delta, "", err
+		return mut, "", err
 	}
 
-	return delta, newNodeID, nil
+	return mut, newNodeID, nil
 }
 
 func (n *AdapterSecureNodeCRDT) GetNodeForKey(key string) (SecureNode, bool, error) {
@@ -157,12 +158,12 @@ func (n *AdapterSecureNodeCRDT) GetNodeForKey(key string) (SecureNode, bool, err
 	return &AdapterSecureNodeCRDT{nodeCrdt: internalNode}, ok, nil
 }
 
-func (n *AdapterSecureNodeCRDT) RemoveKeyValue(key string, prvKey string) (*Delta, error) {
-	secureAction := func(clientID ClientID) (*Delta, *NodeCRDT, error) {
+func (n *AdapterSecureNodeCRDT) RemoveKeyValue(key string, prvKey string) (Mutation, error) {
+	secureAction := func(clientID ClientID) (Mutation, *NodeCRDT, error) {
 		if err := n.nodeCrdt.RemoveKeyValue(key, clientID); err != nil {
-			return nil, nil, fmt.Errorf("failed to remove key-value: %w", err)
+			return Mutation{}, nil, fmt.Errorf("failed to remove key-value: %w", err)
 		}
-		return nil, n.nodeCrdt, nil
+		return Mutation{}, n.nodeCrdt, nil
 	}
 
 	return performSecureAction(
@@ -200,16 +201,16 @@ func (c *AdapterSecureTreeCRDT) ABAC() *ABACPolicy {
 	return c.treeCrdt.ABACPolicy
 }
 
-func (c *AdapterSecureTreeCRDT) CreateAttachedNode(name string, nodeType NodeType, parentID NodeID, prvKey string) (*Delta, SecureNode, error) {
+func (c *AdapterSecureTreeCRDT) CreateAttachedNode(name string, nodeType NodeType, parentID NodeID, prvKey string) (Mutation, SecureNode, error) {
 	var newNode *NodeCRDT
 
-	secureAction := func(clientID ClientID) (*Delta, *NodeCRDT, error) {
+	secureAction := func(clientID ClientID) (Mutation, *NodeCRDT, error) {
 		node := c.treeCrdt.CreateAttachedNode(name, nodeType, parentID, clientID)
 		newNode = node
-		return nil, newNode, nil
+		return Mutation{}, newNode, nil
 	}
 
-	delta, err := performSecureAction(
+	mut, err := performSecureAction(
 		true,
 		prvKey,
 		ActionModify,
@@ -218,19 +219,19 @@ func (c *AdapterSecureTreeCRDT) CreateAttachedNode(name string, nodeType NodeTyp
 		secureAction,
 	)
 	if err != nil {
-		return nil, nil, err
+		return Mutation{}, nil, err
 	}
 
-	return delta, &AdapterSecureNodeCRDT{nodeCrdt: newNode}, nil
+	return mut, &AdapterSecureNodeCRDT{nodeCrdt: newNode}, nil
 }
 
-func (c *AdapterSecureTreeCRDT) CreateNode(name string, nodeType NodeType, prvKey string) (*Delta, SecureNode, error) {
+func (c *AdapterSecureTreeCRDT) CreateNode(name string, nodeType NodeType, prvKey string) (Mutation, SecureNode, error) {
 	var newNode *NodeCRDT
 
-	secureAction := func(clientID ClientID) (*Delta, *NodeCRDT, error) {
+	secureAction := func(clientID ClientID) (Mutation, *NodeCRDT, error) {
 		node := c.treeCrdt.CreateNode(name, nodeType, clientID)
 		newNode = node
-		return nil, newNode, nil
+		return Mutation{}, newNode, nil
 	}
 
 	var nounce, signature string
@@ -243,7 +244,7 @@ func (c *AdapterSecureTreeCRDT) CreateNode(name string, nodeType NodeType, prvKe
 		secureAction,
 	)
 	if err != nil {
-		return nil, nil, err
+		return Mutation{}, nil, err
 	}
 
 	newNode.Nounce = nounce
@@ -284,18 +285,18 @@ func (c *AdapterSecureTreeCRDT) GetStringValueByPath(path string) (string, error
 	return c.treeCrdt.GetStringValueByPath(path)
 }
 
-func (c *AdapterSecureTreeCRDT) AddEdge(from, to NodeID, label string, prvKey string) (*Delta, error) {
-	secureAction := func(clientID ClientID) (*Delta, *NodeCRDT, error) {
+func (c *AdapterSecureTreeCRDT) AddEdge(from, to NodeID, label string, prvKey string) (Mutation, error) {
+	secureAction := func(clientID ClientID) (Mutation, *NodeCRDT, error) {
 		node, ok := c.treeCrdt.GetNode(from)
 		if !ok {
-			return nil, nil, fmt.Errorf("parent node %s not found", from)
+			return Mutation{}, nil, fmt.Errorf("parent node %s not found", from)
 		}
 
 		err := c.treeCrdt.AddEdge(from, to, label, clientID)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to add edge from %s to %s: %w", from, to, err)
+			return Mutation{}, nil, fmt.Errorf("failed to add edge from %s to %s: %w", from, to, err)
 		}
-		return nil, node, nil
+		return Mutation{}, node, nil
 	}
 
 	return performSecureAction(
@@ -308,17 +309,17 @@ func (c *AdapterSecureTreeCRDT) AddEdge(from, to NodeID, label string, prvKey st
 	)
 }
 
-func (c *AdapterSecureTreeCRDT) RemoveEdge(from, to NodeID, prvKey string) (*Delta, error) {
-	secureAction := func(clientID ClientID) (*Delta, *NodeCRDT, error) {
+func (c *AdapterSecureTreeCRDT) RemoveEdge(from, to NodeID, prvKey string) (Mutation, error) {
+	secureAction := func(clientID ClientID) (Mutation, *NodeCRDT, error) {
 		node, ok := c.treeCrdt.GetNode(from)
 		if !ok {
-			return nil, nil, fmt.Errorf("parent node %s not found", from)
+			return Mutation{}, nil, fmt.Errorf("parent node %s not found", from)
 		}
 		err := c.treeCrdt.RemoveEdge(from, to, clientID)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to remove edge from %s to %s: %w", from, to, err)
+			return Mutation{}, nil, fmt.Errorf("failed to remove edge from %s to %s: %w", from, to, err)
 		}
-		return nil, node, nil
+		return Mutation{}, node, nil
 	}
 
 	return performSecureAction(
@@ -331,17 +332,17 @@ func (c *AdapterSecureTreeCRDT) RemoveEdge(from, to NodeID, prvKey string) (*Del
 	)
 }
 
-func (c *AdapterSecureTreeCRDT) AppendEdge(from, to NodeID, label string, prvKey string) (*Delta, error) {
-	secureAction := func(clientID ClientID) (*Delta, *NodeCRDT, error) {
+func (c *AdapterSecureTreeCRDT) AppendEdge(from, to NodeID, label string, prvKey string) (Mutation, error) {
+	secureAction := func(clientID ClientID) (Mutation, *NodeCRDT, error) {
 		node, ok := c.treeCrdt.GetNode(from)
 		if !ok {
-			return nil, nil, fmt.Errorf("parent node %s not found", from)
+			return Mutation{}, nil, fmt.Errorf("parent node %s not found", from)
 		}
 		err := c.treeCrdt.AppendEdge(from, to, label, clientID)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to append edge from %s to %s: %w", from, to, err)
+			return Mutation{}, nil, fmt.Errorf("failed to append edge from %s to %s: %w", from, to, err)
 		}
-		return nil, node, nil
+		return Mutation{}, node, nil
 	}
 
 	return performSecureAction(
@@ -354,17 +355,17 @@ func (c *AdapterSecureTreeCRDT) AppendEdge(from, to NodeID, label string, prvKey
 	)
 }
 
-func (c *AdapterSecureTreeCRDT) PrependEdge(from, to NodeID, label string, prvKey string) (*Delta, error) {
-	secureAction := func(clientID ClientID) (*Delta, *NodeCRDT, error) {
+func (c *AdapterSecureTreeCRDT) PrependEdge(from, to NodeID, label string, prvKey string) (Mutation, error) {
+	secureAction := func(clientID ClientID) (Mutation, *NodeCRDT, error) {
 		node, ok := c.treeCrdt.GetNode(from)
 		if !ok {
-			return nil, nil, fmt.Errorf("parent node %s not found", from)
+			return Mutation{}, nil, fmt.Errorf("parent node %s not found", from)
 		}
 		err := c.treeCrdt.PrependEdge(from, to, label, clientID)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to prepend edge from %s to %s: %w", from, to, err)
+			return Mutation{}, nil, fmt.Errorf("failed to prepend edge from %s to %s: %w", from, to, err)
 		}
-		return nil, node, nil
+		return Mutation{}, node, nil
 	}
 
 	return performSecureAction(
@@ -377,17 +378,17 @@ func (c *AdapterSecureTreeCRDT) PrependEdge(from, to NodeID, label string, prvKe
 	)
 }
 
-func (c *AdapterSecureTreeCRDT) InsertEdgeLeft(from, to NodeID, label string, sibling NodeID, prvKey string) (*Delta, error) {
-	secureAction := func(clientID ClientID) (*Delta, *NodeCRDT, error) {
+func (c *AdapterSecureTreeCRDT) InsertEdgeLeft(from, to NodeID, label string, sibling NodeID, prvKey string) (Mutation, error) {
+	secureAction := func(clientID ClientID) (Mutation, *NodeCRDT, error) {
 		node, ok := c.treeCrdt.Nodes[from]
 		if !ok {
-			return nil, nil, fmt.Errorf("parent node %s not found", from)
+			return Mutation{}, nil, fmt.Errorf("parent node %s not found", from)
 		}
 		err := c.treeCrdt.InsertEdgeLeft(from, to, label, sibling, clientID)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to insert edge left from %s to %s: %w", from, to, err)
+			return Mutation{}, nil, fmt.Errorf("failed to insert edge left from %s to %s: %w", from, to, err)
 		}
-		return nil, node, nil
+		return Mutation{}, node, nil
 	}
 
 	return performSecureAction(
@@ -400,17 +401,17 @@ func (c *AdapterSecureTreeCRDT) InsertEdgeLeft(from, to NodeID, label string, si
 	)
 }
 
-func (c *AdapterSecureTreeCRDT) InsertEdgeRight(from, to NodeID, label string, sibling NodeID, prvKey string) (*Delta, error) {
-	secureAction := func(clientID ClientID) (*Delta, *NodeCRDT, error) {
+func (c *AdapterSecureTreeCRDT) InsertEdgeRight(from, to NodeID, label string, sibling NodeID, prvKey string) (Mutation, error) {
+	secureAction := func(clientID ClientID) (Mutation, *NodeCRDT, error) {
 		node, ok := c.treeCrdt.Nodes[from]
 		if !ok {
-			return nil, nil, fmt.Errorf("parent node %s not found", from)
+			return Mutation{}, nil, fmt.Errorf("parent node %s not found", from)
 		}
 		err := c.treeCrdt.InsertEdgeRight(from, to, label, sibling, clientID)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to insert edge right from %s to %s: %w", from, to, err)
+			return Mutation{}, nil, fmt.Errorf("failed to insert edge right from %s to %s: %w", from, to, err)
 		}
-		return nil, node, nil
+		return Mutation{}, node, nil
 	}
 
 	return performSecureAction(

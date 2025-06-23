@@ -160,9 +160,11 @@ func (n *NodeCRDT) GetNodeForKey(key string) (*NodeCRDT, bool, error) {
 	return nil, false, nil
 }
 
-func (n *NodeCRDT) SetKeyValue(key string, value interface{}, clientID ClientID) (NodeID, error) {
+func (n *NodeCRDT) SetKeyValue(key string, value interface{}, clientID ClientID) (Mutation, NodeID, error) {
+	mut := Mutation{}
+
 	if !n.IsMap {
-		return "", fmt.Errorf("SetKeyValue: node %s is not a map node", n.ID)
+		return mut, "", fmt.Errorf("SetKeyValue: node %s is not a map node", n.ID)
 	}
 
 	// Check if key already exists
@@ -171,7 +173,7 @@ func (n *NodeCRDT) SetKeyValue(key string, value interface{}, clientID ClientID)
 			valueNodeID := edge.To
 			valueNode, exists := n.tree.Nodes[valueNodeID]
 			if !exists {
-				return "", fmt.Errorf("SetKeyValue: missing node %s", valueNodeID)
+				return mut, "", fmt.Errorf("SetKeyValue: missing node %s", valueNodeID)
 			}
 			maxVersion := 0
 			for _, v := range valueNode.Clock {
@@ -189,11 +191,11 @@ func (n *NodeCRDT) SetKeyValue(key string, value interface{}, clientID ClientID)
 					"ClientID":       clientID,
 					"Error":          err,
 				}).Error("SetLiteral failed")
+				return mut, "", fmt.Errorf("SetKeyValue: failed to set value for key %s: %w", key, err)
 			}
 
 			valueNode.ParentID = n.ID // Ensure parent link is set
-
-			return valueNodeID, err
+			return mut, valueNodeID, nil
 		}
 	}
 
@@ -201,18 +203,19 @@ func (n *NodeCRDT) SetKeyValue(key string, value interface{}, clientID ClientID)
 	valueNodeID := generateRandomNodeID("val")
 	valueNode := n.tree.getOrCreateNode(valueNodeID, Literal, clientID, 1)
 	// setLiteralWithVersion will notify subscribers, when the values is updated
-	if err := valueNode.setLiteralWithVersion(value, clientID, 1); err != nil {
-		return "", err
+	err := valueNode.setLiteralWithVersion(value, clientID, 1)
+	if err != nil {
+		return mut, "", err
 	}
 
 	// Link to map node with key label
 	if err := n.tree.AddEdge(n.ID, valueNodeID, key, clientID); err != nil {
-		return "", err
+		return mut, "", err
 	}
 
 	n.tree.notifySubscribers(valueNodeID, EventAdded)
 
-	return valueNodeID, nil
+	return mut, valueNodeID, nil
 }
 
 func (n *NodeCRDT) RemoveKeyValue(key string, clientID ClientID) error {
@@ -544,7 +547,22 @@ func (n *NodeCRDT) GetLiteral() (interface{}, error) {
 	return n.LiteralValue, nil
 }
 
-func (n *NodeCRDT) SetLiteral(value interface{}, clientID ClientID) error {
+func (n *NodeCRDT) SetLiteral(value interface{}, clientID ClientID) (Mutation, error) {
+	mut := n.generateSetLiteralMutations(value, clientID)
+	if err := n.applySetLiteralMutations(mut); err != nil {
+		log.WithFields(log.Fields{
+			"NodeID":         n.ID,
+			"AttemptedValue": value,
+			"ClientID":       clientID,
+			"Error":          err,
+		}).Error("SetLiteral failed")
+		return Mutation{}, fmt.Errorf("SetLiteral failed: %w", err)
+	}
+
+	return mut, nil
+}
+
+func (n *NodeCRDT) generateSetLiteralMutations(value interface{}, clientID ClientID) Mutation {
 	// Find max version for this client
 	maxVersion := 0
 	for _, v := range n.Clock {
@@ -554,29 +572,37 @@ func (n *NodeCRDT) SetLiteral(value interface{}, clientID ClientID) error {
 	}
 	version := maxVersion + 1
 
-	return n.setLiteralWithVersion(value, clientID, version)
+	mut := Mutation{
+		NodeID:   n.ID,
+		Op:       OPSetLiteral,
+		Value:    value,
+		ClientID: clientID,
+		Version:  version,
+	}
+
+	return mut
 }
 
-func (n *NodeCRDT) setLiteralWithVersion(value interface{}, clientID ClientID, version int) error {
-	value = normalizeNumber(value) // If value is a number, normalize it to float64 since JS uses float64 for all numbers
+func (n *NodeCRDT) applySetLiteralMutations(mut Mutation) error {
+	value := normalizeNumber(mut.Value) // If value is a number, normalize it to float64 since JS uses float64 for all numbers
 	currentClock := n.Clock
 	newClock := make(VectorClock)
-	newClock[clientID] = version
+	newClock[mut.ClientID] = mut.Version
 
-	winningClock, winningOwner := resolveConflict(currentClock, newClock, n.Owner, clientID, false)
+	winningClock, winningOwner := resolveConflict(currentClock, newClock, n.Owner, mut.ClientID, false)
 
-	if clocksEqual(winningClock, newClock) && winningOwner == clientID {
+	if clocksEqual(winningClock, newClock) && winningOwner == mut.ClientID {
 		n.IsLiteral = true
 		n.LiteralValue = value
 		n.Clock = newClock
-		n.Owner = clientID
+		n.Owner = mut.ClientID
 		log.WithFields(log.Fields{
 			"NodeID":       n.ID,
 			"NodeClock":    currentClock,
 			"NewClock":     newClock,
 			"WinningClock": winningClock,
 			"WinningOwner": winningOwner,
-			"ClientID":     clientID,
+			"ClientID":     mut.ClientID,
 			"LiteralValue": value}).Debug("Set literal value")
 
 		// XXX: We cannot notify subscribers if node does not have a parent, this will happen when using CreateNode
@@ -588,13 +614,35 @@ func (n *NodeCRDT) setLiteralWithVersion(value interface{}, clientID ClientID, v
 	} else {
 		log.WithFields(log.Fields{"NodeID": n.ID,
 			"AttemptedLiteralValue": value,
-			"ClientID":              clientID,
+			"ClientID":              mut.ClientID,
 			"NodeClock":             currentClock,
 			"NewClock":              newClock,
 			"WinningClock":          winningClock,
 			"ExistingOwner":         n.Owner,
 			"WinningOwner":          winningOwner}).Debug("Literal set ignored due to conflict")
 		return fmt.Errorf("Cannot set literal value, conflict detected: %s", n.ID)
+	}
+
+	return nil
+}
+
+func (n *NodeCRDT) setLiteralWithVersion(value interface{}, clientID ClientID, version int) error {
+	mut := Mutation{
+		NodeID:   n.ID,
+		Op:       OPSetLiteral,
+		Value:    value,
+		ClientID: clientID,
+		Version:  version,
+	}
+
+	if err := n.applySetLiteralMutations(mut); err != nil {
+		log.WithFields(log.Fields{
+			"NodeID":         n.ID,
+			"AttemptedValue": value,
+			"ClientID":       clientID,
+			"Error":          err,
+		}).Error("SetLiteral failed")
+		return fmt.Errorf("SetLiteral failed: %w", err)
 	}
 
 	return nil

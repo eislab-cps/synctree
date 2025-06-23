@@ -5,14 +5,14 @@ type SecureNode interface {
 	ID() NodeID
 
 	// Literal operations
-	SetLiteral(value interface{}, prvKey string) (*Delta, error)
+	SetLiteral(value interface{}, prvKey string) (Mutation, error)
 	GetLiteral() (interface{}, error)
 
 	// Map operations
-	CreateMapNode(prvKey string) (*Delta, SecureNode, error)
-	SetKeyValue(key string, value interface{}, prvKey string) (*Delta, NodeID, error)
+	CreateMapNode(prvKey string) (Mutation, SecureNode, error)
+	SetKeyValue(key string, value interface{}, prvKey string) (Mutation, NodeID, error)
 	GetNodeForKey(key string) (SecureNode, bool, error)
-	RemoveKeyValue(key string, prvKey string) (*Delta, error)
+	RemoveKeyValue(key string, prvKey string) (Mutation, error)
 }
 
 type SecureTree interface {
@@ -23,8 +23,8 @@ type SecureTree interface {
 	Subscribe(path string, ch chan NodeEvent)
 
 	// Node operations
-	CreateAttachedNode(name string, nodeType NodeType, parentID NodeID, prvKey string) (*Delta, SecureNode, error)
-	CreateNode(name string, nodeType NodeType, prvKey string) (*Delta, SecureNode, error)
+	CreateAttachedNode(name string, nodeType NodeType, parentID NodeID, prvKey string) (Mutation, SecureNode, error)
+	CreateNode(name string, nodeType NodeType, prvKey string) (Mutation, SecureNode, error)
 	GetNode(id NodeID) (SecureNode, bool)
 	GetSibling(parentNodeID NodeID, index int) (SecureNode, error)
 	GetValueByPath(path string) (interface{}, error)
@@ -32,14 +32,14 @@ type SecureTree interface {
 	GetStringValueByPath(path string) (string, error)
 
 	// Edge operations
-	AddEdge(from, to NodeID, label string, prvKey string) (*Delta, error)
-	RemoveEdge(from, to NodeID, prvKey string) (*Delta, error)
+	AddEdge(from, to NodeID, label string, prvKey string) (Mutation, error)
+	RemoveEdge(from, to NodeID, prvKey string) (Mutation, error)
 
 	// List operations
-	AppendEdge(from, to NodeID, label string, prvKey string) (*Delta, error)
-	PrependEdge(from, to NodeID, label string, prvKey string) (*Delta, error)
-	InsertEdgeLeft(from, to NodeID, label string, sibling NodeID, prvKey string) (*Delta, error)
-	InsertEdgeRight(from, to NodeID, label string, sibling NodeID, prvKey string) (*Delta, error)
+	AppendEdge(from, to NodeID, label string, prvKey string) (Mutation, error)
+	PrependEdge(from, to NodeID, label string, prvKey string) (Mutation, error)
+	InsertEdgeLeft(from, to NodeID, label string, sibling NodeID, prvKey string) (Mutation, error)
+	InsertEdgeRight(from, to NodeID, label string, sibling NodeID, prvKey string) (Mutation, error)
 
 	// Merge operations
 	Merge(c2 SecureTree, prvKey string) error
