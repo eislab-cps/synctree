@@ -1,11 +1,11 @@
-package crdt
+package vectorclock
 
 import (
+	"github.com/eislab-cps/synctree/pkg/core"
 	log "github.com/sirupsen/logrus"
 )
 
-type ClientID string
-type VectorClock map[ClientID]int
+type VectorClock map[core.ClientID]int
 
 type ClockComparison int
 
@@ -16,7 +16,7 @@ const (
 	ClockConcurrent
 )
 
-func copyClock(clock VectorClock) VectorClock {
+func CopyClock(clock VectorClock) VectorClock {
 	newClock := make(VectorClock)
 	for k, v := range clock {
 		newClock[k] = v
@@ -26,7 +26,7 @@ func copyClock(clock VectorClock) VectorClock {
 
 func compareClocks(a, b VectorClock) ClockComparison {
 	less, greater := false, false
-	keys := make(map[ClientID]struct{})
+	keys := make(map[core.ClientID]struct{})
 	for k := range a {
 		keys[k] = struct{}{}
 	}
@@ -61,7 +61,7 @@ func compareClocks(a, b VectorClock) ClockComparison {
 	}
 }
 
-func clocksEqual(a, b VectorClock) bool {
+func ClocksEqual(a, b VectorClock) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -73,7 +73,7 @@ func clocksEqual(a, b VectorClock) bool {
 	return true
 }
 
-func mergeClocks(a, b VectorClock) VectorClock {
+func MergeClocks(a, b VectorClock) VectorClock {
 	merged := make(VectorClock)
 	for k, v := range a {
 		merged[k] = v
@@ -93,8 +93,8 @@ func lowestClientIDAFirst(a, b VectorClock) bool {
 	return minA < minB
 }
 
-func findLowestClientID(clock VectorClock) ClientID {
-	var minID ClientID
+func findLowestClientID(clock VectorClock) core.ClientID {
+	var minID core.ClientID
 	for id := range clock {
 		if minID == "" || id < minID {
 			minID = id
@@ -103,15 +103,8 @@ func findLowestClientID(clock VectorClock) ClientID {
 	return minID
 }
 
-func resolveConflict(a, b VectorClock, ownerA, ownerB ClientID, append bool) (VectorClock, ClientID) {
+func ResolveConflict(a, b VectorClock, ownerA, ownerB core.ClientID, append bool) (VectorClock, core.ClientID) {
 	cmp := compareClocks(a, b)
-
-	// log.WithFields(log.Fields{
-	//               "NodeID":         valueNodeID,
-	//               "AttemptedValue": value,
-	//               "ClientID":       clientID,
-	//               "Error":          err,
-	//           }).Warning("SetLiteral failed")
 
 	switch cmp {
 	case ClockDominates:
@@ -122,7 +115,7 @@ func resolveConflict(a, b VectorClock, ownerA, ownerB ClientID, append bool) (Ve
 			"Result":         "Clock dominates",
 		}).Debug("Resolving conflicts")
 
-		return copyClock(a), ownerA
+		return CopyClock(a), ownerA
 	case ClockIsDominated:
 		log.WithFields(log.Fields{
 			"OwnerA":         ownerA,
@@ -130,7 +123,7 @@ func resolveConflict(a, b VectorClock, ownerA, ownerB ClientID, append bool) (Ve
 			"AttemptedValue": b,
 			"Result":         "Clock is dominated",
 		}).Debug("Resolving conflicts")
-		return copyClock(b), ownerB
+		return CopyClock(b), ownerB
 	case ClockEqual, ClockConcurrent:
 		if append {
 			log.WithFields(log.Fields{
@@ -141,7 +134,7 @@ func resolveConflict(a, b VectorClock, ownerA, ownerB ClientID, append bool) (Ve
 			}).Debug("Resolving conflicts")
 
 			// Merge both clocks if appending (e.g., arrays)
-			merged := mergeClocks(a, b)
+			merged := MergeClocks(a, b)
 			return merged, "" // No definitive winner in append mode
 		}
 
@@ -156,7 +149,7 @@ func resolveConflict(a, b VectorClock, ownerA, ownerB ClientID, append bool) (Ve
 				"AttemptedValue": a,
 				"Result":         "Last writer wins (OwnerA)",
 			}).Debug("Resolving conflicts")
-			return copyClock(a), ownerA
+			return CopyClock(a), ownerA
 		} else if bVersion > aVersion {
 			log.WithFields(log.Fields{
 				"OwnerA":         ownerA,
@@ -164,7 +157,7 @@ func resolveConflict(a, b VectorClock, ownerA, ownerB ClientID, append bool) (Ve
 				"AttemptedValue": b,
 				"Result":         "Last writer wins (OwnerB)",
 			}).Debug("Resolving conflicts")
-			return copyClock(b), ownerB
+			return CopyClock(b), ownerB
 		}
 
 		// Tie-break on ClientID
@@ -175,7 +168,7 @@ func resolveConflict(a, b VectorClock, ownerA, ownerB ClientID, append bool) (Ve
 				"AttemptedValue": a,
 				"Result":         "Tie-break on ClientID (OwnerA)",
 			}).Debug("Resolving conflicts")
-			return copyClock(a), ownerA
+			return CopyClock(a), ownerA
 		}
 
 		log.WithFields(log.Fields{
@@ -184,7 +177,7 @@ func resolveConflict(a, b VectorClock, ownerA, ownerB ClientID, append bool) (Ve
 			"AttemptedValue": b,
 			"Result":         "Tie-break on ClientID (OwnerB)",
 		}).Debug("Resolving conflicts")
-		return copyClock(b), ownerB
+		return CopyClock(b), ownerB
 	}
 
 	// TODO: return an error
@@ -196,5 +189,5 @@ func resolveConflict(a, b VectorClock, ownerA, ownerB ClientID, append bool) (Ve
 		"Result":         "Unexpected clock comparison result",
 	}).Error("Resolving conflicts")
 
-	return copyClock(a), ownerA
+	return CopyClock(a), ownerA
 }

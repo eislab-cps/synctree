@@ -3,12 +3,13 @@ package crdt
 import (
 	"testing"
 
+	"github.com/eislab-cps/synctree/pkg/core"
 	"github.com/eislab-cps/synctree/pkg/random"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestTreeCRDTGetByPath(t *testing.T) {
-	clientID := ClientID(random.GenerateRandomID())
+	clientID := core.ClientID(random.GenerateRandomID())
 
 	originalJSON := []byte(`{
 		"uid": "user_1",
@@ -31,7 +32,7 @@ func TestTreeCRDTGetByPath(t *testing.T) {
 		]
 	}`)
 
-	crdt := newTreeCRDT()
+	crdt := NewTreeCRDT()
 	_, err := crdt.ImportJSON(originalJSON, clientID)
 	assert.Nil(t, err)
 
@@ -79,10 +80,10 @@ func TestTreeCRDTGetByPath(t *testing.T) {
 }
 
 func TestTreeCRDTGetByPathArray(t *testing.T) {
-	clientID := ClientID(random.GenerateRandomID())
+	clientID := core.ClientID(random.GenerateRandomID())
 	initialJSON := []byte(`[2, 3, 4]`)
 
-	c := newTreeCRDT()
+	c := NewTreeCRDT()
 	_, err := c.ImportJSON(initialJSON, clientID)
 	assert.Nil(t, err, "AddNodeRecursively should not return an error")
 

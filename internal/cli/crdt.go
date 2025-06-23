@@ -3,7 +3,7 @@ package cli
 import (
 	"os"
 
-	"github.com/eislab-cps/synctree/pkg/crdt"
+	"github.com/eislab-cps/synctree/pkg/securecrdt"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -73,7 +73,7 @@ var importCmd = &cobra.Command{
 			"crdt": CRDTFile,
 		}).Info("Importing JSON file to CRDT SyncTree")
 
-		c, err := crdt.NewSecureTree(PrvKey)
+		c, err := securecrdt.NewSecureTreeCRDT(PrvKey)
 		CheckError(err)
 
 		jsonData, err := os.ReadFile(JSONFile)
@@ -104,7 +104,7 @@ var exportCmd = &cobra.Command{
 			"crdt": CRDTFile,
 		}).Info("Exporting CRDT SyncTree to JSON")
 
-		c, err := crdt.NewSecureTree(PrvKey)
+		c, err := securecrdt.NewSecureTreeCRDT(PrvKey)
 		CheckError(err)
 
 		crdtData, err := os.ReadFile(CRDTFile)
@@ -136,7 +136,7 @@ var setLiteralCmd = &cobra.Command{
 			"value": LiteralValue,
 		}).Info("Exporting CRDT SyncTree to JSON")
 
-		c, err := crdt.NewSecureTree(PrvKey)
+		c, err := securecrdt.NewSecureTreeCRDT(PrvKey)
 		CheckError(err)
 
 		crdtData, err := os.ReadFile(CRDTFile)
@@ -175,7 +175,7 @@ var mergeCmd = &cobra.Command{
 			"crdtout": CRDTFileOut,
 		}).Info("Merging two CRDT SyncTree files")
 
-		c1, err := crdt.NewSecureTree(PrvKey)
+		c1, err := securecrdt.NewSecureTreeCRDT(PrvKey)
 		CheckError(err)
 
 		data1, err := os.ReadFile(CRDTFileIn1)
@@ -184,7 +184,7 @@ var mergeCmd = &cobra.Command{
 		err = c1.Load(data1)
 		CheckError(err)
 
-		c2, err := crdt.NewSecureTree(PrvKey)
+		c2, err := securecrdt.NewSecureTreeCRDT(PrvKey)
 		CheckError(err)
 
 		data2, err := os.ReadFile(CRDTFileIn2)
@@ -219,7 +219,7 @@ var printCmd = &cobra.Command{
 			"crdt": CRDTFile,
 		}).Info("Exporting CRDT SyncTree to JSON")
 
-		c, err := crdt.NewSecureTree(PrvKey)
+		c, err := securecrdt.NewSecureTreeCRDT(PrvKey)
 		CheckError(err)
 
 		crdtData, err := os.ReadFile(CRDTFile)
@@ -243,7 +243,7 @@ var verifyCmd = &cobra.Command{
 			"crdt": CRDTFile,
 		}).Info("Exporting CRDT SyncTree to JSON")
 
-		c, err := crdt.NewSecureTree(PrvKey)
+		c, err := securecrdt.NewSecureTreeCRDT(PrvKey)
 		CheckError(err)
 
 		crdtData, err := os.ReadFile(CRDTFile)

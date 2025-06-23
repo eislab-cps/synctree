@@ -8,21 +8,24 @@ import (
 	"reflect"
 
 	"github.com/eislab-cps/synctree/internal/crypto"
+	"github.com/eislab-cps/synctree/pkg/abac"
+	"github.com/eislab-cps/synctree/pkg/core"
+	"github.com/eislab-cps/synctree/pkg/vectorclock"
 	"github.com/iancoleman/orderedmap"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/sha3"
 )
 
-func (c *TreeCRDT) ImportJSON(rawJSON []byte, clientID ClientID) (NodeID, error) {
+func (c *TreeCRDT) ImportJSON(rawJSON []byte, clientID core.ClientID) (core.NodeID, error) {
 	return c.importJSON(rawJSON, c.Root.ID, "", -1, Root, clientID, false, nil)
 }
 
-func (c *TreeCRDT) SecureImportJSON(rawJSON []byte, identity *crypto.Idendity) (NodeID, error) {
-	clientID := ClientID(identity.ID())
+func (c *TreeCRDT) SecureImportJSON(rawJSON []byte, identity *crypto.Idendity) (core.NodeID, error) {
+	clientID := core.ClientID(identity.ID())
 	return c.importJSON(rawJSON, c.Root.ID, "", -1, Root, clientID, true, identity)
 }
 
-func (c *TreeCRDT) ImportJSONToMap(rawJSON []byte, parentID NodeID, key string, clientID ClientID) (NodeID, error) {
+func (c *TreeCRDT) ImportJSONToMap(rawJSON []byte, parentID core.NodeID, key string, clientID core.ClientID) (core.NodeID, error) {
 	if parentID == "" {
 		if c.Root == nil {
 			return "", errors.New("cannot import JSON without a root node")
@@ -41,7 +44,8 @@ func (c *TreeCRDT) ImportJSONToMap(rawJSON []byte, parentID NodeID, key string, 
 	return c.importJSON(rawJSON, parentID, key, -1, Map, clientID, false, nil)
 }
 
-func (c *TreeCRDT) SecureImportJSONToMap(rawJSON []byte, parentID NodeID, key string, identity *crypto.Idendity) (NodeID, error) {
+func (c *TreeCRDT) SecureImportJSONToMap(rawJSON []byte, parentID core.NodeID, key string, identity *crypto.Idendity) (core.
+	NodeID, error) {
 	if parentID == "" {
 		if c.Root == nil {
 			return "", errors.New("cannot import JSON without a root node")
@@ -57,11 +61,11 @@ func (c *TreeCRDT) SecureImportJSONToMap(rawJSON []byte, parentID NodeID, key st
 		return "", fmt.Errorf("parent node with ID %s is not a map", parentID)
 	}
 
-	clientID := ClientID(identity.ID())
+	clientID := core.ClientID(identity.ID())
 	return c.importJSON(rawJSON, parentID, key, -1, Map, clientID, true, identity)
 }
 
-func (c *TreeCRDT) ImportJSONToArray(rawJSON []byte, parentID NodeID, clientID ClientID) (NodeID, error) {
+func (c *TreeCRDT) ImportJSONToArray(rawJSON []byte, parentID core.NodeID, clientID core.ClientID) (core.NodeID, error) {
 	if parentID == "" {
 		if c.Root == nil {
 			return "", errors.New("cannot import JSON without a root node")
@@ -80,7 +84,7 @@ func (c *TreeCRDT) ImportJSONToArray(rawJSON []byte, parentID NodeID, clientID C
 	return c.importJSON(rawJSON, parentID, "", -1, Map, clientID, false, nil)
 }
 
-func (c *TreeCRDT) SecureImportJSONToArray(rawJSON []byte, parentID NodeID, identity *crypto.Idendity) (NodeID, error) {
+func (c *TreeCRDT) SecureImportJSONToArray(rawJSON []byte, parentID core.NodeID, identity *crypto.Idendity) (core.NodeID, error) {
 	if parentID == "" {
 		if c.Root == nil {
 			return "", errors.New("cannot import JSON without a root node")
@@ -96,11 +100,11 @@ func (c *TreeCRDT) SecureImportJSONToArray(rawJSON []byte, parentID NodeID, iden
 		return "", fmt.Errorf("parent node with ID %s is not a map", parentID)
 	}
 
-	clientID := ClientID(identity.ID())
+	clientID := core.ClientID(identity.ID())
 	return c.importJSON(rawJSON, parentID, "", -1, Map, clientID, true, identity)
 }
 
-func (c *TreeCRDT) importJSON(rawJSON []byte, parentID NodeID, edgeLabel string, idx int, nodeType NodeType, clientID ClientID, secure bool, identity *crypto.Idendity) (NodeID, error) {
+func (c *TreeCRDT) importJSON(rawJSON []byte, parentID core.NodeID, edgeLabel string, idx int, nodeType core.NodeType, clientID core.ClientID, secure bool, identity *crypto.Idendity) (core.NodeID, error) {
 	version := 1
 	var parent *NodeCRDT
 	if parentID == "" {
@@ -120,7 +124,7 @@ func (c *TreeCRDT) importJSON(rawJSON []byte, parentID NodeID, edgeLabel string,
 	return nodeID, err
 }
 
-func (c *TreeCRDT) secureImportRecursive(v interface{}, parent *NodeCRDT, edgeLabel string, idx int, nodeType NodeType, clientID ClientID, secure bool, identity *crypto.Idendity) (NodeID, error) {
+func (c *TreeCRDT) secureImportRecursive(v interface{}, parent *NodeCRDT, edgeLabel string, idx int, nodeType core.NodeType, clientID core.ClientID, secure bool, identity *crypto.Idendity) (core.NodeID, error) {
 	version := 1
 
 	switch val := v.(type) {
@@ -312,23 +316,23 @@ func (c *TreeCRDT) Load(data []byte) error {
 		return errors.New("missing or invalid 'nodes' field")
 	}
 
-	c.Nodes = make(map[NodeID]*NodeCRDT)
+	c.Nodes = make(map[core.NodeID]*NodeCRDT)
 
 	for idStr, val := range nodesRaw {
 		nodeMap := val.(map[string]interface{})
 		node := &NodeCRDT{
-			ID:           NodeID(idStr),
+			ID:           core.NodeID(idStr),
 			Edges:        []*EdgeCRDT{},
-			Clock:        make(VectorClock),
+			Clock:        make(vectorclock.VectorClock),
 			IsRoot:       nodeMap["isroot"].(bool),
-			ParentID:     NodeID(nodeMap["parentid"].(string)),
+			ParentID:     core.NodeID(nodeMap["parentid"].(string)),
 			IsArray:      nodeMap["isarray"].(bool),
 			IsPromoted:   nodeMap["ispromoted"].(bool),
 			IsMap:        nodeMap["ismap"].(bool),
 			IsDeleted:    nodeMap["deleted"].(bool),
 			IsLiteral:    nodeMap["isliteral"].(bool),
 			LiteralValue: nodeMap["litteralValue"],
-			Owner:        ClientID(nodeMap["owner"].(string)),
+			Owner:        core.ClientID(nodeMap["owner"].(string)),
 			Signature:    nodeMap["signature"].(string),
 			Nounce:       nodeMap["nounce"].(string),
 		}
@@ -337,7 +341,7 @@ func (c *TreeCRDT) Load(data []byte) error {
 		if clockMap, ok := nodeMap["clock"].(map[string]interface{}); ok {
 			for k, v := range clockMap {
 				if floatVal, ok := v.(float64); ok {
-					node.Clock[ClientID(k)] = int(floatVal)
+					node.Clock[core.ClientID(k)] = int(floatVal)
 				}
 			}
 		}
@@ -346,13 +350,13 @@ func (c *TreeCRDT) Load(data []byte) error {
 	}
 
 	for idStr, val := range nodesRaw {
-		node := c.Nodes[NodeID(idStr)]
+		node := c.Nodes[core.NodeID(idStr)]
 		edgeArr := val.(map[string]interface{})["edges"].([]interface{})
 		for _, e := range edgeArr {
 			em := e.(map[string]interface{})
 			edge := &EdgeCRDT{
-				From:         NodeID(em["from"].(string)),
-				To:           NodeID(em["to"].(string)),
+				From:         core.NodeID(em["from"].(string)),
+				To:           core.NodeID(em["to"].(string)),
 				Label:        em["label"].(string),
 				LSEQPosition: []int{},
 			}
@@ -364,7 +368,7 @@ func (c *TreeCRDT) Load(data []byte) error {
 	}
 
 	if rootStr, ok := raw["root"].(string); ok {
-		c.Root = c.Nodes[NodeID(rootStr)]
+		c.Root = c.Nodes[core.NodeID(rootStr)]
 	} else {
 		return errors.New("missing root node ID")
 	}
@@ -379,11 +383,11 @@ func (c *TreeCRDT) Load(data []byte) error {
 			return fmt.Errorf("failed to re-marshal ABAC policy: %w", err)
 		}
 
-		c.ABACPolicy = &ABACPolicy{}
+		c.ABACPolicy = &abac.ABACPolicy{}
 		if err := c.ABACPolicy.UnmarshalJSON(abacBytes); err != nil {
 			return fmt.Errorf("failed to parse ABAC policy: %w", err)
 		}
-		c.ABACPolicy.tree = c // Set the tree reference for ABACPolicy
+		c.ABACPolicy.SetTreeChecker(c) // Set the tree reference for ABACPolicy
 	}
 
 	return nil
@@ -399,7 +403,7 @@ func (c *TreeCRDT) ExportJSON() ([]byte, error) {
 }
 
 func (c *TreeCRDT) export() (interface{}, error) {
-	visited := make(map[NodeID]bool)
+	visited := make(map[core.NodeID]bool)
 
 	if len(c.Root.Edges) == 0 {
 		return nil, fmt.Errorf("Root node has no edges")
@@ -446,7 +450,7 @@ func (c *TreeCRDT) export() (interface{}, error) {
 }
 
 func (n *NodeCRDT) ExportJSON(crdt *TreeCRDT) ([]byte, error) {
-	visited := make(map[NodeID]bool)
+	visited := make(map[core.NodeID]bool)
 	result, err := exportNodeRecursive(n, crdt, visited)
 	if err != nil {
 		return nil, err
@@ -455,7 +459,7 @@ func (n *NodeCRDT) ExportJSON(crdt *TreeCRDT) ([]byte, error) {
 	return json.MarshalIndent(result, "", "  ")
 }
 
-func exportNodeRecursive(node *NodeCRDT, crdt *TreeCRDT, visited map[NodeID]bool) (interface{}, error) {
+func exportNodeRecursive(node *NodeCRDT, crdt *TreeCRDT, visited map[core.NodeID]bool) (interface{}, error) {
 	if visited[node.ID] {
 		return nil, fmt.Errorf("cycle detected at node %s", node.ID)
 	}
@@ -524,7 +528,7 @@ func exportNodeRecursive(node *NodeCRDT, crdt *TreeCRDT, visited map[NodeID]bool
 	return obj, nil
 }
 
-func (c *TreeCRDT) exportNodeOrdered(id NodeID, visited map[NodeID]bool) (interface{}, error) {
+func (c *TreeCRDT) exportNodeOrdered(id core.NodeID, visited map[core.NodeID]bool) (interface{}, error) {
 	if visited[id] {
 		return nil, fmt.Errorf("cycle detected at node %s", id)
 	}
@@ -589,7 +593,7 @@ func (c *TreeCRDT) Clone() (*TreeCRDT, error) {
 	if err != nil {
 		return nil, err
 	}
-	newTreeCRDT := newTreeCRDT()
+	newTreeCRDT := NewTreeCRDT()
 	if err := newTreeCRDT.Load(safeCopy); err != nil {
 		return nil, err
 	}
@@ -670,8 +674,8 @@ func nodesSemanticallyEqual(n1, n2 *NodeCRDT) bool {
 		}
 	} else {
 		// Compare edges as unordered field entries (map-like)
-		labelMap1 := map[string]NodeID{}
-		labelMap2 := map[string]NodeID{}
+		labelMap1 := map[string]core.NodeID{}
+		labelMap2 := map[string]core.NodeID{}
 		for _, e := range n1.Edges {
 			labelMap1[e.Label] = e.To
 		}

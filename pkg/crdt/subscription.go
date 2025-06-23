@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/eislab-cps/synctree/pkg/core"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -22,7 +23,7 @@ const (
 )
 
 type NodeEvent struct {
-	NodeID NodeID
+	NodeID core.NodeID
 	Path   string
 	Type   NodeEventType
 }
@@ -40,7 +41,7 @@ func (c *TreeCRDT) Subscribe(path string, ch chan NodeEvent) {
 	}).Debug("Subscribed to path")
 }
 
-func (c *TreeCRDT) computePath(nodeID NodeID) (string, error) {
+func (c *TreeCRDT) computePath(nodeID core.NodeID) (string, error) {
 	node, ok := c.Nodes[nodeID]
 	if !ok {
 		return "", fmt.Errorf("Node %s not found", nodeID)
@@ -92,7 +93,7 @@ func (c *TreeCRDT) computePath(nodeID NodeID) (string, error) {
 	return path, nil
 }
 
-func (c *TreeCRDT) notifySubscribers(nodeID NodeID, eventType NodeEventType) {
+func (c *TreeCRDT) notifySubscribers(nodeID core.NodeID, eventType NodeEventType) {
 	nodePath, err := c.computePath(nodeID)
 	if err != nil {
 		log.WithFields(log.Fields{

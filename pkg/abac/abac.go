@@ -1,4 +1,4 @@
-package crdt
+package abac
 
 import (
 	"encoding/hex"
@@ -7,7 +7,9 @@ import (
 	"sort"
 
 	"github.com/eislab-cps/synctree/internal/crypto"
+	"github.com/eislab-cps/synctree/pkg/core"
 	"github.com/eislab-cps/synctree/pkg/random"
+	"github.com/eislab-cps/synctree/pkg/vectorclock"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -23,38 +25,46 @@ type ABACRule struct {
 }
 
 type TreeChecker interface {
-	isDescendant(root NodeID, target NodeID) bool
+	IsDescendant(root core.NodeID, target core.NodeID) bool
 }
 
 type ABACPolicy struct {
-	Rules     map[string]map[ABACAction]map[NodeID]ABACRule `json:"rules"`
-	OwnerID   string                                        `json:"ownerID"`
-	Clock     VectorClock                                   `json:"clock"`
-	Nounce    string                                        `json:"nounce"`
-	Signature string                                        `json:"signature"`
-	tree      TreeChecker                                   `json:"-"`
-	identity  *crypto.Idendity                              `json:"-"`
+	Rules       map[string]map[ABACAction]map[core.NodeID]ABACRule `json:"rules"`
+	OwnerID     string                                             `json:"ownerID"`
+	Clock       vectorclock.VectorClock                            `json:"clock"`
+	Nounce      string                                             `json:"nounce"`
+	Signature   string                                             `json:"signature"`
+	treeChecker TreeChecker                                        `json:"-"`
+	identity    *crypto.Idendity                                   `json:"-"`
 }
 
-func NewABACPolicy(tree TreeChecker, ownerID string, identity *crypto.Idendity) *ABACPolicy {
+func NewABACPolicy(treeChecker TreeChecker, ownerID string, identity *crypto.Idendity) *ABACPolicy {
 	return &ABACPolicy{
-		Rules:    make(map[string]map[ABACAction]map[NodeID]ABACRule),
-		tree:     tree,
-		OwnerID:  ownerID,
-		identity: identity,
-		Clock:    make(VectorClock),
+		Rules:       make(map[string]map[ABACAction]map[core.NodeID]ABACRule),
+		treeChecker: treeChecker,
+		OwnerID:     ownerID,
+		identity:    identity,
+		Clock:       make(vectorclock.VectorClock),
 	}
 }
 
-func (p *ABACPolicy) SetTree(tree TreeChecker) {
-	p.tree = tree
+func (p *ABACPolicy) SetTreeChecker(treeChecker TreeChecker) {
+	p.treeChecker = treeChecker
 }
 
-func (p *ABACPolicy) Allow(id string, action ABACAction, nodeID NodeID, recursive bool) error {
-	clientID := ClientID(p.identity.ID())
+func (p *ABACPolicy) SetIdentity(identity *crypto.Idendity) {
+	p.identity = identity
+}
+
+func (p *ABACPolicy) Identity() *crypto.Idendity {
+	return p.identity
+}
+
+func (p *ABACPolicy) Allow(id string, action ABACAction, nodeID core.NodeID, recursive bool) error {
+	clientID := core.ClientID(p.identity.ID())
 
 	// Step 1: Prepare new clock
-	newClock := copyClock(p.Clock)
+	newClock := vectorclock.CopyClock(p.Clock)
 
 	maxVersion := 0
 	for _, v := range newClock {
@@ -66,17 +76,17 @@ func (p *ABACPolicy) Allow(id string, action ABACAction, nodeID NodeID, recursiv
 	newClock[clientID] = version
 
 	// Step 2: Resolve conflict
-	winningClock, winningOwner := resolveConflict(p.Clock, newClock, ClientID(p.OwnerID), clientID, false)
+	winningClock, winningOwner := vectorclock.ResolveConflict(p.Clock, newClock, core.ClientID(p.OwnerID), clientID, false)
 
-	if clocksEqual(winningClock, newClock) && winningOwner == clientID {
+	if vectorclock.ClocksEqual(winningClock, newClock) && winningOwner == clientID {
 		// Step 3: Apply update
 		p.Clock = newClock
 
 		if _, ok := p.Rules[id]; !ok {
-			p.Rules[id] = make(map[ABACAction]map[NodeID]ABACRule)
+			p.Rules[id] = make(map[ABACAction]map[core.NodeID]ABACRule)
 		}
 		if _, ok := p.Rules[id][action]; !ok {
-			p.Rules[id][action] = make(map[NodeID]ABACRule)
+			p.Rules[id][action] = make(map[core.NodeID]ABACRule)
 		}
 		p.Rules[id][action][nodeID] = ABACRule{Recursive: recursive}
 
@@ -104,15 +114,15 @@ func (p *ABACPolicy) Allow(id string, action ABACAction, nodeID NodeID, recursiv
 	return nil
 }
 
-func (p *ABACPolicy) UpdateRule(id string, action ABACAction, nodeID NodeID, recursive bool) error {
+func (p *ABACPolicy) UpdateRule(id string, action ABACAction, nodeID core.NodeID, recursive bool) error {
 	return p.Allow(id, action, nodeID, recursive)
 }
 
-func (p *ABACPolicy) RemoveRule(id string, action ABACAction, nodeID NodeID) error {
-	clientID := ClientID(p.identity.ID())
+func (p *ABACPolicy) RemoveRule(id string, action ABACAction, nodeID core.NodeID) error {
+	clientID := core.ClientID(p.identity.ID())
 
 	// Step 1: Prepare new clock
-	newClock := copyClock(p.Clock)
+	newClock := vectorclock.CopyClock(p.Clock)
 
 	maxVersion := 0
 	for _, v := range newClock {
@@ -124,9 +134,9 @@ func (p *ABACPolicy) RemoveRule(id string, action ABACAction, nodeID NodeID) err
 	newClock[clientID] = version
 
 	// Step 2: Resolve conflict
-	winningClock, winningOwner := resolveConflict(p.Clock, newClock, ClientID(p.OwnerID), clientID, false)
+	winningClock, winningOwner := vectorclock.ResolveConflict(p.Clock, newClock, core.ClientID(p.OwnerID), clientID, false)
 
-	if clocksEqual(winningClock, newClock) && winningOwner == clientID {
+	if vectorclock.ClocksEqual(winningClock, newClock) && winningOwner == clientID {
 		// Step 3: Apply update
 		p.Clock = newClock
 
@@ -165,8 +175,8 @@ func (p *ABACPolicy) RemoveRule(id string, action ABACAction, nodeID NodeID) err
 	return nil
 }
 
-func (p *ABACPolicy) IsAllowed(id string, action ABACAction, target NodeID) bool {
-	if p.tree == nil {
+func (p *ABACPolicy) IsAllowed(id string, action ABACAction, target core.NodeID) bool {
+	if p.treeChecker == nil {
 		panic("ABACPolicy.tree is not set")
 	}
 
@@ -186,7 +196,7 @@ func (p *ABACPolicy) IsAllowed(id string, action ABACAction, target NodeID) bool
 			// Check exact action
 			if rules, ok := actions[action]; ok {
 				for nodeID, rule := range rules {
-					if nodeID == "*" || nodeID == target || (rule.Recursive && p.tree.isDescendant(nodeID, target)) {
+					if nodeID == "*" || nodeID == target || (rule.Recursive && p.treeChecker.IsDescendant(nodeID, target)) {
 						return true
 					}
 				}
@@ -194,7 +204,7 @@ func (p *ABACPolicy) IsAllowed(id string, action ABACAction, target NodeID) bool
 			// Check wildcard action
 			if rules, ok := actions["*"]; ok {
 				for nodeID, rule := range rules {
-					if nodeID == "*" || nodeID == target || (rule.Recursive && p.tree.isDescendant(nodeID, target)) {
+					if nodeID == "*" || nodeID == target || (rule.Recursive && p.treeChecker.IsDescendant(nodeID, target)) {
 						return true
 					}
 				}
@@ -206,17 +216,17 @@ func (p *ABACPolicy) IsAllowed(id string, action ABACAction, target NodeID) bool
 
 func (p *ABACPolicy) Merge(remote *ABACPolicy) error {
 	// Step 1: Resolve policy-level conflict (LWW on full policy)
-	winningClock, winningOwner := resolveConflict(
+	winningClock, winningOwner := vectorclock.ResolveConflict(
 		p.Clock,
 		remote.Clock,
-		ClientID(p.OwnerID),
-		ClientID(remote.OwnerID),
+		core.ClientID(p.OwnerID),
+		core.ClientID(remote.OwnerID),
 		false, // not append → LWW mode
 	)
 
-	if clocksEqual(winningClock, remote.Clock) && winningOwner == ClientID(remote.OwnerID) {
+	if vectorclock.ClocksEqual(winningClock, remote.Clock) && winningOwner == core.ClientID(remote.OwnerID) {
 		// Remote wins → replace entire ABACPolicy
-		p.Clock = copyClock(remote.Clock)
+		p.Clock = vectorclock.CopyClock(remote.Clock)
 		p.Rules = deepCopyRules(remote.Rules)
 		p.OwnerID = remote.OwnerID
 		p.Nounce = remote.Nounce
@@ -239,12 +249,12 @@ func (p *ABACPolicy) Merge(remote *ABACPolicy) error {
 	return nil
 }
 
-func deepCopyRules(rules map[string]map[ABACAction]map[NodeID]ABACRule) map[string]map[ABACAction]map[NodeID]ABACRule {
-	newRules := make(map[string]map[ABACAction]map[NodeID]ABACRule)
+func deepCopyRules(rules map[string]map[ABACAction]map[core.NodeID]ABACRule) map[string]map[ABACAction]map[core.NodeID]ABACRule {
+	newRules := make(map[string]map[ABACAction]map[core.NodeID]ABACRule)
 	for clientID, actions := range rules {
-		newActions := make(map[ABACAction]map[NodeID]ABACRule)
+		newActions := make(map[ABACAction]map[core.NodeID]ABACRule)
 		for action, nodes := range actions {
-			newNodes := make(map[NodeID]ABACRule)
+			newNodes := make(map[core.NodeID]ABACRule)
 			for nodeID, rule := range nodes {
 				newNodes[nodeID] = rule
 			}
@@ -313,7 +323,7 @@ func (p *ABACPolicy) ComputeDigest() (*crypto.Hash, error) {
 			sort.Strings(nodeIDs)
 
 			for _, nodeID := range nodeIDs {
-				rule := rules[NodeID(nodeID)]
+				rule := rules[core.NodeID(nodeID)]
 				orderedRules = append(orderedRules, struct {
 					ClientID  string
 					Action    string
@@ -392,7 +402,7 @@ func (p *ABACPolicy) PrintPolicy() {
 			sort.Strings(nodeIDs)
 
 			for _, nodeID := range nodeIDs {
-				rule := rules[NodeID(nodeID)]
+				rule := rules[core.NodeID(nodeID)]
 				fmt.Printf("    Node: %s (Recursive: %v)\n", nodeID, rule.Recursive)
 			}
 		}

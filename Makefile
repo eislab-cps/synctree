@@ -26,7 +26,15 @@ coverage:
 	./buildtools/coverage.sh
 
 test: 
+	@cd pkg/abac; go test -v --race
+	@cd pkg/core; go test -v --race
+	@cd pkg/lseq; go test -v --race
+	@cd pkg/utils; go test -v --race
+	@cd pkg/random; go test -v --race
+	@cd pkg/vectorclock; go test -v --race
 	@cd pkg/crdt; go test -v --race
+	@cd pkg/securecrdt; go test -v --race
+	@cd pkg/security/crypto; go test -v --race
 	@cd internal/crypto; go test -v --race
 
 install:

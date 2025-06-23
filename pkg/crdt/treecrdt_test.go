@@ -4,58 +4,16 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/eislab-cps/synctree/pkg/core"
 	"github.com/eislab-cps/synctree/pkg/random"
+	"github.com/eislab-cps/synctree/pkg/utils"
+	"github.com/eislab-cps/synctree/pkg/vectorclock"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestIsDescendant(t *testing.T) {
-	tree := newTreeCRDT()
-	client := ClientID("test-client")
-
-	// Build structure:
-	// root
-	// ├── A
-	// │   └── B
-	// │       └── C
-	// └── X
-	//     └── Y
-	nodeA := tree.CreateAttachedNode("A", Map, tree.Root.ID, client)
-	nodeB := tree.CreateAttachedNode("B", Map, nodeA.ID, client)
-	nodeC := tree.CreateAttachedNode("C", Map, nodeB.ID, client)
-
-	nodeX := tree.CreateAttachedNode("X", Map, tree.Root.ID, client)
-	nodeY := tree.CreateAttachedNode("Y", Map, nodeX.ID, client)
-
-	tests := []struct {
-		name     string
-		root     NodeID
-		target   NodeID
-		expected bool
-	}{
-		{"C is descendant of root", tree.Root.ID, nodeC.ID, true},
-		{"B is descendant of A", nodeA.ID, nodeB.ID, true},
-		{"A is not descendant of C", nodeC.ID, nodeA.ID, false},
-		{"root is descendant of root", tree.Root.ID, tree.Root.ID, true},
-		{"unrelated (B is not descendant of Y)", nodeY.ID, nodeB.ID, false},
-		{"Y is descendant of X", nodeX.ID, nodeY.ID, true},
-		{"X is not descendant of A", nodeA.ID, nodeX.ID, false},
-		{"C is not under X", nodeX.ID, nodeC.ID, false},
-		{"node not in tree", nodeC.ID, "missing-node", false},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			result := tree.isDescendant(test.root, test.target)
-			if result != test.expected {
-				t.Errorf("IsDescendant(%s, %s) = %v; want %v", test.root, test.target, result, test.expected)
-			}
-		})
-	}
-}
-
 func TestTreeCRDTSetFieldArrays(t *testing.T) {
-	clientID := ClientID(random.GenerateRandomID())
+	clientID := core.ClientID(random.GenerateRandomID())
 
 	json := []byte(`{
 	  "a": [
@@ -65,7 +23,7 @@ func TestTreeCRDTSetFieldArrays(t *testing.T) {
 	  ]
 	}`)
 
-	c := newTreeCRDT()
+	c := NewTreeCRDT()
 	_, err := c.ImportJSON(json, clientID)
 	assert.NoError(t, err)
 }
@@ -73,10 +31,10 @@ func TestTreeCRDTSetFieldArrays(t *testing.T) {
 func TestTreeCRDTSetFieldsConflictLastWriterWins(t *testing.T) {
 	logrus.SetLevel(logrus.WarnLevel)
 
-	c1 := newTreeCRDT()
+	c1 := NewTreeCRDT()
 
-	clientID1 := ClientID(random.GenerateRandomID())
-	clientID2 := ClientID(random.GenerateRandomID())
+	clientID1 := core.ClientID(random.GenerateRandomID())
+	clientID2 := core.ClientID(random.GenerateRandomID())
 
 	rootC1 := c1.Root
 
@@ -108,16 +66,16 @@ func TestTreeCRDTSetFieldsConflictLastWriterWins(t *testing.T) {
 	assert.NoError(t, err, "ExportToJSON should not return an error")
 
 	expectedJSON := []byte(`{"key":"value3"}`)
-	compareJSON(t, expectedJSON, exportedJSON)
+	utils.CompareJSON(t, expectedJSON, exportedJSON)
 }
 
 func TestTreeCRDTSetFieldsConflictNodeIDTieBraker(t *testing.T) {
 	logrus.SetLevel(logrus.WarnLevel)
 
-	c1 := newTreeCRDT()
+	c1 := NewTreeCRDT()
 
-	clientID1 := ClientID(random.GenerateRandomID())
-	clientID2 := ClientID(random.GenerateRandomID())
+	clientID1 := core.ClientID(random.GenerateRandomID())
+	clientID2 := core.ClientID(random.GenerateRandomID())
 
 	rootC1 := c1.Root
 
@@ -149,17 +107,17 @@ func TestTreeCRDTSetFieldsConflictNodeIDTieBraker(t *testing.T) {
 	// This test will result in a conflict resolution where client IDs will be used as tie-breakers.
 	if clientID1 < clientID2 {
 		expectedJSON := []byte(`{"key":"value3"}`)
-		compareJSON(t, expectedJSON, exportedJSON)
+		utils.CompareJSON(t, expectedJSON, exportedJSON)
 	} else {
 		expectedJSON := []byte(`{"key":"value2"}`)
-		compareJSON(t, expectedJSON, exportedJSON)
+		utils.CompareJSON(t, expectedJSON, exportedJSON)
 	}
 }
 
 func TestTreeCRDTNodeRemoveField(t *testing.T) {
-	c := newTreeCRDT()
+	c := NewTreeCRDT()
 
-	clientID := ClientID(random.GenerateRandomID())
+	clientID := core.ClientID(random.GenerateRandomID())
 
 	mapNode, err := c.Root.CreateMapNode(clientID)
 	assert.NoError(t, err, "CreateMapNode should not return an error")
@@ -198,11 +156,11 @@ func TestTreeCRDTNodeRemoveField(t *testing.T) {
 }
 
 func TestTreeCRDTAddEdgeWithVersion(t *testing.T) {
-	c := newTreeCRDT()
+	c := NewTreeCRDT()
 
 	// To make the test deterministic, we will use fixed client IDs
-	clientID := ClientID("bbbb")
-	otherClientID := ClientID("aaaa")
+	clientID := core.ClientID("bbbb")
+	otherClientID := core.ClientID("aaaa")
 
 	parent := c.CreateAttachedNode("parent", Map, c.Root.ID, clientID)
 	child := c.CreateAttachedNode("child", Map, c.Root.ID, clientID)
@@ -249,10 +207,10 @@ func TestTreeCRDTAddEdgeWithVersion(t *testing.T) {
 }
 
 func TestTreeCRDTRemoveEdgeWithVersion(t *testing.T) {
-	c := newTreeCRDT()
+	c := NewTreeCRDT()
 
-	clientID := ClientID("bbbb")
-	otherClientID := ClientID("aaaa")
+	clientID := core.ClientID("bbbb")
+	otherClientID := core.ClientID("aaaa")
 
 	parent := c.CreateAttachedNode("parent", Map, c.Root.ID, clientID)
 	child := c.CreateAttachedNode("child", Map, c.Root.ID, clientID)
@@ -288,12 +246,12 @@ func TestTreeCRDTRemoveEdgeWithVersion(t *testing.T) {
 }
 
 func TestTreeCRDTRemoveIndexInArray(t *testing.T) {
-	clientID := ClientID(random.GenerateRandomID())
+	clientID := core.ClientID(random.GenerateRandomID())
 
 	initialJSON := []byte(`["A", "B", "C"]`)
 
-	c := newTreeCRDT()
-	_, err := c.ImportJSON(initialJSON, ClientID(clientID))
+	c := NewTreeCRDT()
+	_, err := c.ImportJSON(initialJSON, core.ClientID(clientID))
 	assert.Nil(t, err, "AddNodeRecursively should not return an error")
 
 	// Find the node with ID "B"
@@ -321,13 +279,13 @@ func TestTreeCRDTRemoveIndexInArray(t *testing.T) {
 		"C"
 	]`)
 
-	compareJSON(t, expectedJSON, exportedJSON)
+	utils.CompareJSON(t, expectedJSON, exportedJSON)
 }
 
 func TestTreeCRDTTidy(t *testing.T) {
-	c := newTreeCRDT()
+	c := NewTreeCRDT()
 
-	clientID := ClientID("client")
+	clientID := core.ClientID("client")
 
 	c.CreateAttachedNode("parent", Map, c.Root.ID, clientID)
 	c.CreateAttachedNode("child", Map, c.Root.ID, clientID)
@@ -347,10 +305,10 @@ func TestTreeCRDTTidy(t *testing.T) {
 }
 
 func TestTreeCRDTNodeSetLiteral(t *testing.T) {
-	c := newTreeCRDT()
+	c := NewTreeCRDT()
 
-	clientID1 := ClientID("client1")
-	clientID2 := ClientID("client2")
+	clientID1 := core.ClientID("client1")
+	clientID2 := core.ClientID("client2")
 
 	node := c.CreateAttachedNode("literalNode", Literal, c.Root.ID, clientID1)
 
@@ -389,10 +347,10 @@ func TestTreeCRDTNodeSetLiteral(t *testing.T) {
 }
 
 func TestTreeCRDTValidation(t *testing.T) {
-	client := ClientID("clientA")
+	client := core.ClientID("clientA")
 
 	t.Run("Valid tree passes validation", func(t *testing.T) {
-		c := newTreeCRDT()
+		c := NewTreeCRDT()
 		nodeA := c.CreateAttachedNode("A", Map, c.Root.ID, client)
 		nodeB := c.CreateAttachedNode("B", Map, nodeA.ID, client)
 		c.CreateAttachedNode("C", Map, nodeB.ID, client)
@@ -402,7 +360,7 @@ func TestTreeCRDTValidation(t *testing.T) {
 	})
 
 	t.Run("Multiple parents detected", func(t *testing.T) {
-		c := newTreeCRDT()
+		c := NewTreeCRDT()
 		nodeA := c.CreateAttachedNode("A", Map, c.Root.ID, client)
 		nodeB := c.CreateAttachedNode("B", Map, nodeA.ID, client)
 		nodeC := c.CreateAttachedNode("C", Map, nodeB.ID, client)
@@ -426,7 +384,7 @@ func TestTreeCRDTValidation(t *testing.T) {
 	})
 
 	t.Run("Cycle detection", func(t *testing.T) {
-		c := newTreeCRDT()
+		c := NewTreeCRDT()
 		nodeA := c.CreateAttachedNode("A", Map, c.Root.ID, client)
 		nodeB := c.CreateAttachedNode("B", Map, nodeA.ID, client)
 		nodeC := c.CreateAttachedNode("C", Map, nodeB.ID, client)
@@ -448,7 +406,7 @@ func TestTreeCRDTValidation(t *testing.T) {
 	})
 
 	t.Run("Literal node with children fails validation", func(t *testing.T) {
-		c := newTreeCRDT()
+		c := NewTreeCRDT()
 		lit := c.CreateAttachedNode("Literal", Literal, c.Root.ID, client)
 		c.CreateAttachedNode("Child", Map, lit.ID, client)
 
@@ -458,7 +416,7 @@ func TestTreeCRDTValidation(t *testing.T) {
 	})
 
 	t.Run("Node with multiple types fails validation", func(t *testing.T) {
-		c := newTreeCRDT()
+		c := NewTreeCRDT()
 		node := c.CreateAttachedNode("BadNode", Map, c.Root.ID, client)
 		node.IsArray = true // Invalid: now both map and array
 
@@ -468,17 +426,17 @@ func TestTreeCRDTValidation(t *testing.T) {
 	})
 
 	t.Run("Unreachable node fails validation", func(t *testing.T) {
-		c := newTreeCRDT()
+		c := NewTreeCRDT()
 		_ = c.CreateAttachedNode("A", Map, c.Root.ID, client)
 
 		// Add isolated node
 		isolated := &NodeCRDT{
-			ID:        NodeID("isolated"),
+			ID:        core.NodeID("isolated"),
 			IsMap:     true,
 			IsRoot:    false,
 			Owner:     client,
 			tree:      c,
-			Clock:     VectorClock{},
+			Clock:     vectorclock.VectorClock{},
 			Nounce:    "iso",
 			Signature: "sig",
 		}
@@ -496,11 +454,11 @@ func TestTreeCRDTValidation(t *testing.T) {
 // // 3. Merge the graphs
 // // 4. The merged graph should be an array of literals since n1 + n2 → [n1, n2] sorted by node ID
 func TestTreeCRDTMergeLitterals(t *testing.T) {
-	c1 := newTreeCRDT()
-	c2 := newTreeCRDT()
+	c1 := NewTreeCRDT()
+	c2 := NewTreeCRDT()
 
-	clientA := ClientID("clientA")
-	clientB := ClientID("clientB")
+	clientA := core.ClientID("clientA")
+	clientB := core.ClientID("clientB")
 
 	// Create shared nodes in both graphs
 	node1 := c1.CreateAttachedNode("sharedA", Literal, c1.Root.ID, clientA)
@@ -531,31 +489,31 @@ func TestTreeCRDTMergeLitterals(t *testing.T) {
 	json2, err := c2Copy.ExportJSON()
 	assert.Nil(t, err, "ExportToJSON should not return an error")
 
-	compareJSON(t, json, json2)
+	utils.CompareJSON(t, json, json2)
 
 	if node1.ID < node2.ID {
 		expectedJSON := []byte(`["A-literal", "B-literal"]`)
-		compareJSON(t, expectedJSON, json)
+		utils.CompareJSON(t, expectedJSON, json)
 	} else {
 		expectedJSON := []byte(`["B-literal", "A-literal"]`)
-		compareJSON(t, expectedJSON, json)
+		utils.CompareJSON(t, expectedJSON, json)
 	}
 }
 
 func TestTreeCRDTMergeLists(t *testing.T) {
-	clientA := ClientID("clientA")
-	clientB := ClientID("clientB")
+	clientA := core.ClientID("clientA")
+	clientB := core.ClientID("clientB")
 
 	initialJSON := []byte(`[1, 2, 4]`)
 
-	c1 := newTreeCRDT()
-	_, err := c1.ImportJSON(initialJSON, ClientID(clientA))
+	c1 := NewTreeCRDT()
+	_, err := c1.ImportJSON(initialJSON, core.ClientID(clientA))
 	assert.Nil(t, err, "AddNodeRecursively should not return an error")
 
 	rawJSON, err := c1.Save()
 	assert.Nil(t, err, "ExportToRaw should not return an error")
 
-	c2 := newTreeCRDT()
+	c2 := NewTreeCRDT()
 	c2.Load(rawJSON)
 	assert.Nil(t, err, "ImportRawJSON should not return an error")
 
@@ -624,12 +582,12 @@ func TestTreeCRDTMergeLists(t *testing.T) {
 	json, err := c1.ExportJSON()
 	assert.Nil(t, err, "ExportToJSON should not return an error")
 	expectedJSON := []byte(`[0, 1, 2, 3, 4]`)
-	compareJSON(t, expectedJSON, json)
+	utils.CompareJSON(t, expectedJSON, json)
 
 	json2, err := c2.ExportJSON()
 	assert.Nil(t, err, "ExportToJSON should not return an error")
 	expectedJSON2 := []byte(`[0, 1, 2, 3, 4]`)
-	compareJSON(t, expectedJSON2, json2)
+	utils.CompareJSON(t, expectedJSON2, json2)
 
 	// Turn on warning log
 	logrus.SetLevel(logrus.WarnLevel)
@@ -640,13 +598,13 @@ func TestTreeCRDTMergeLists(t *testing.T) {
 }
 
 func TestTreeCRDTMergeListsConflicts(t *testing.T) {
-	clientA := ClientID("A")
-	clientB := ClientID("B")
+	clientA := core.ClientID("A")
+	clientB := core.ClientID("B")
 
 	initialJSON := []byte(`[2, 3, 4]`)
 
-	c1 := newTreeCRDT()
-	_, err := c1.ImportJSON(initialJSON, ClientID(clientA))
+	c1 := NewTreeCRDT()
+	_, err := c1.ImportJSON(initialJSON, core.ClientID(clientA))
 	assert.Nil(t, err, "AddNodeRecursively should not return an error")
 
 	c2, err := c1.Clone()
@@ -687,15 +645,15 @@ func TestTreeCRDTMergeListsConflicts(t *testing.T) {
 }
 
 func TestTreeCRDTMergeKVListsWithConflicts(t *testing.T) {
-	clientA := ClientID("clientA")
-	clientB := ClientID("clientB")
+	clientA := core.ClientID("clientA")
+	clientB := core.ClientID("clientB")
 
 	initialJSON := []byte(`[
 		{"id": "A", "value": "1"}
 	]`)
 
-	c1 := newTreeCRDT()
-	_, err := c1.ImportJSON(initialJSON, ClientID(clientA))
+	c1 := NewTreeCRDT()
+	_, err := c1.ImportJSON(initialJSON, core.ClientID(clientA))
 	assert.Nil(t, err, "AddNodeRecursively should not return an error")
 
 	c2, err := c1.Clone()
@@ -741,12 +699,12 @@ func TestTreeCRDTMergeKVListsWithConflicts(t *testing.T) {
 	 	{"id": "A", "value": "22"}
 	]`)
 
-	compareJSON(t, expectedJSON, json)
-	compareJSON(t, expectedJSON, json2)
+	utils.CompareJSON(t, expectedJSON, json)
+	utils.CompareJSON(t, expectedJSON, json2)
 }
 
 func TestTreeCRDTMergeJSON1(t *testing.T) {
-	clientID := ClientID(random.GenerateRandomID())
+	clientID := core.ClientID(random.GenerateRandomID())
 
 	json1 := []byte(`{
 	  "1": [
@@ -827,11 +785,11 @@ func TestTreeCRDTMergeJSON1(t *testing.T) {
 	]`)
 
 	// Build and merge CRDTs
-	c1 := newTreeCRDT()
+	c1 := NewTreeCRDT()
 	_, err := c1.ImportJSON(json1, clientID)
 	assert.NoError(t, err)
 
-	c2 := newTreeCRDT()
+	c2 := NewTreeCRDT()
 	_, err = c2.ImportJSON(json1, clientID)
 	assert.NoError(t, err)
 
@@ -842,25 +800,25 @@ func TestTreeCRDTMergeJSON1(t *testing.T) {
 	exportedJSON, err := c1.ExportJSON()
 	assert.NoError(t, err)
 
-	exportedEqualsExpected := isJSONEqual(t, exportedJSON, expectedJSON) || isJSONEqual(t, exportedJSON, expectedJSONAlt)
+	exportedEqualsExpected := utils.IsJSONEqual(t, exportedJSON, expectedJSON) || utils.IsJSONEqual(t, exportedJSON, expectedJSONAlt)
 	assert.True(t, exportedEqualsExpected, "Exported JSON should match expected JSON")
 
-	compareJSON(t, expectedJSON, exportedJSON)
+	utils.CompareJSON(t, expectedJSON, exportedJSON)
 }
 
 func TestTreeCRDTMergeHelloWorld(t *testing.T) {
-	clientA := ClientID("clientA")
-	clientB := ClientID("clientB")
+	clientA := core.ClientID("clientA")
+	clientB := core.ClientID("clientB")
 
 	// Step 1: Start from empty CRDT
-	c1 := newTreeCRDT()
+	c1 := NewTreeCRDT()
 	_, err := c1.ImportJSON([]byte(`[]`), clientA)
 	assert.Nil(t, err)
 
 	// Step 2: Insert "Hello" in c1
 	charsA := []string{"H", "e", "l", "l", "o"}
 	parentNode := c1.Root.Edges[0].To
-	var leftID NodeID
+	var leftID core.NodeID
 	for _, ch := range charsA {
 		n := c1.CreateNode(ch, Literal, clientA)
 		n.SetLiteral(ch, clientA)
@@ -874,7 +832,7 @@ func TestTreeCRDTMergeHelloWorld(t *testing.T) {
 	raw, err := c1.Save()
 	assert.Nil(t, err)
 
-	c2 := newTreeCRDT()
+	c2 := NewTreeCRDT()
 	err = c2.Load(raw)
 	assert.Nil(t, err)
 
@@ -903,24 +861,24 @@ func TestTreeCRDTMergeHelloWorld(t *testing.T) {
 	assert.Nil(t, err)
 
 	expected := []byte(`["H","e","l","l","o"," ","w","o","r","l","d","!"]`)
-	compareJSON(t, expected, json1)
-	compareJSON(t, expected, json2)
+	utils.CompareJSON(t, expected, json1)
+	utils.CompareJSON(t, expected, json2)
 
 	assert.True(t, c1.Equal(c2), "Graphs should be equal after merge")
 	assert.Equal(t, c1.Root.Owner, c2.Root.Owner, "Root owners should match after merge")
 }
 
 func TestTreeCRDTSingleTreeTwoClientsHelloWorld(t *testing.T) {
-	clientA := ClientID("clientA")
-	clientB := ClientID("clientB")
+	clientA := core.ClientID("clientA")
+	clientB := core.ClientID("clientB")
 
 	// Step 1: Initialize TreeCRDT with an empty array
-	tree := newTreeCRDT()
+	tree := NewTreeCRDT()
 	_, err := tree.ImportJSON([]byte(`[]`), clientA)
 	assert.Nil(t, err, "ImportJSON should not return an error")
 
 	parentNode := tree.Root.Edges[0].To
-	var leftID NodeID
+	var leftID core.NodeID
 
 	// Step 2: Client A inserts "Hello"
 	charsA := []string{"H", "e", "l", "l", "o"}
@@ -947,24 +905,24 @@ func TestTreeCRDTSingleTreeTwoClientsHelloWorld(t *testing.T) {
 	assert.Nil(t, err, "ExportJSON should not return an error")
 
 	expected := []byte(`["H","e","l","l","o"," ","w","o","r","l","d","!"]`)
-	compareJSON(t, expected, json)
+	utils.CompareJSON(t, expected, json)
 }
 
 func TestTreeCRDTSingleTreeInterleavedClientsHelloWorld(t *testing.T) {
-	clientA := ClientID("clientA")
-	clientB := ClientID("clientB")
+	clientA := core.ClientID("clientA")
+	clientB := core.ClientID("clientB")
 
 	// Step 1: Initialize shared TreeCRDT with an empty array
-	tree := newTreeCRDT()
+	tree := NewTreeCRDT()
 	_, err := tree.ImportJSON([]byte(`[]`), clientA)
 	assert.Nil(t, err, "ImportJSON should not return an error")
 
 	parentNode := tree.Root.Edges[0].To
-	var leftID NodeID
+	var leftID core.NodeID
 
 	// Step 2: Interleave clients while inserting "Hello world!"
 	chars := []string{"H", "e", "l", "l", "o", " ", "w", "o", "r", "l", "d", "!"}
-	clients := []ClientID{clientA, clientB} // Alternating clients
+	clients := []core.ClientID{clientA, clientB} // Alternating clients
 
 	for i, ch := range chars {
 		client := clients[i%2]
@@ -981,15 +939,15 @@ func TestTreeCRDTSingleTreeInterleavedClientsHelloWorld(t *testing.T) {
 	assert.Nil(t, err, "ExportJSON should not return an error")
 
 	expected := []byte(`["H","e","l","l","o"," ","w","o","r","l","d","!"]`)
-	compareJSON(t, expected, json)
+	utils.CompareJSON(t, expected, json)
 }
 
 func TestTreeCRDTMarkDeletedArray(t *testing.T) {
-	clientID := ClientID("clientA")
+	clientID := core.ClientID("clientA")
 
 	initialJSON := []byte(`[2, 3, 4]`)
 
-	c := newTreeCRDT()
+	c := NewTreeCRDT()
 	_, err := c.ImportJSON(initialJSON, clientID)
 	assert.Nil(t, err, "AddNodeRecursively should not return an error")
 
@@ -1007,7 +965,7 @@ func TestTreeCRDTMarkDeletedArray(t *testing.T) {
 	assert.NoError(t, err, "ExportJSON should not return an error")
 
 	expectedJSON := []byte(`[2, 4]`)
-	compareJSON(t, expectedJSON, exportedJSON)
+	utils.CompareJSON(t, expectedJSON, exportedJSON)
 
 	arrayNodeID := c.Root.Edges[0].To
 	arrayNode, ok := c.GetNode(arrayNodeID)
@@ -1026,11 +984,11 @@ func TestTreeCRDTMarkDeletedArray(t *testing.T) {
 }
 
 func TestTreeCRDTMarkDeletedMap(t *testing.T) {
-	clientID := ClientID("clientA")
+	clientID := core.ClientID("clientA")
 
 	initialJSON := []byte(`{"A": 1, "B": 2, "C": 3}`)
 
-	c := newTreeCRDT()
+	c := NewTreeCRDT()
 	_, err := c.ImportJSON(initialJSON, clientID)
 	assert.Nil(t, err, "AddNodeRecursively should not return an error")
 
@@ -1048,7 +1006,7 @@ func TestTreeCRDTMarkDeletedMap(t *testing.T) {
 	assert.NoError(t, err, "ExportJSON should not return an error")
 
 	expectedJSON := []byte(`{"A": 1, "C": 3}`)
-	compareJSON(t, expectedJSON, exportedJSON)
+	utils.CompareJSON(t, expectedJSON, exportedJSON)
 
 	arrayNodeID := c.Root.Edges[0].To
 	arrayNode, ok := c.GetNode(arrayNodeID)
@@ -1066,11 +1024,11 @@ func TestTreeCRDTMarkDeletedMap(t *testing.T) {
 }
 
 func TestTreeCRDTMarkDeletedLitteral(t *testing.T) {
-	clientID := ClientID("clientA")
+	clientID := core.ClientID("clientA")
 
 	initialJSON := []byte(`"A"`)
 
-	c := newTreeCRDT()
+	c := NewTreeCRDT()
 	_, err := c.ImportJSON(initialJSON, clientID)
 	assert.Nil(t, err, "AddNodeRecursively should not return an error")
 
@@ -1090,5 +1048,5 @@ func TestTreeCRDTMarkDeletedLitteral(t *testing.T) {
 	assert.NoError(t, err, "ExportJSON should not return an error")
 
 	expectedJSON := []byte(`null`)
-	compareJSON(t, expectedJSON, exportedJSON)
+	utils.CompareJSON(t, expectedJSON, exportedJSON)
 }
