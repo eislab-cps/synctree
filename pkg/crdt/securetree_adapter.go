@@ -67,7 +67,7 @@ func (n *AdapterSecureNodeCRDT) ID() NodeID {
 	return n.nodeCrdt.ID
 }
 
-func (n *AdapterSecureNodeCRDT) SetLiteral(value interface{}, prvKey string) error { // Tested
+func (n *AdapterSecureNodeCRDT) SetLiteral(value interface{}, prvKey string) (*Delta, error) { // Tested
 	secureAction := func(clientID ClientID) (*NodeCRDT, error) {
 		if err := n.nodeCrdt.SetLiteral(value, clientID); err != nil {
 			return nil, fmt.Errorf("failed to set literal: %w", err)
@@ -79,20 +79,21 @@ func (n *AdapterSecureNodeCRDT) SetLiteral(value interface{}, prvKey string) err
 	if n.nodeCrdt.ParentID == "" {
 		accessControl = false // If the node is not attached to a tree, we skip ABAC checks
 	}
-	return performSecureAction(
+	err := performSecureAction(
 		accessControl,
 		prvKey,
 		ActionModify,
 		n.nodeCrdt.ID,
 		n.nodeCrdt.tree.ABACPolicy,
 		secureAction)
+	return nil, err
 }
 
 func (n *AdapterSecureNodeCRDT) GetLiteral() (interface{}, error) {
 	return n.nodeCrdt.GetLiteral()
 }
 
-func (n *AdapterSecureNodeCRDT) CreateMapNode(prvKey string) (SecureNode, error) { // Tested
+func (n *AdapterSecureNodeCRDT) CreateMapNode(prvKey string) (*Delta, SecureNode, error) { // Tested
 	var newNode *NodeCRDT
 
 	secureAction := func(clientID ClientID) (*NodeCRDT, error) {
@@ -112,13 +113,13 @@ func (n *AdapterSecureNodeCRDT) CreateMapNode(prvKey string) (SecureNode, error)
 		n.nodeCrdt.tree.ABACPolicy,
 		secureAction)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return &AdapterSecureNodeCRDT{nodeCrdt: newNode}, nil
+	return nil, &AdapterSecureNodeCRDT{nodeCrdt: newNode}, nil
 }
 
-func (n *AdapterSecureNodeCRDT) SetKeyValue(key string, value interface{}, prvKey string) (NodeID, error) { // Tested
+func (n *AdapterSecureNodeCRDT) SetKeyValue(key string, value interface{}, prvKey string) (*Delta, NodeID, error) { // Tested
 	var newNodeID NodeID
 
 	secureAction := func(clientID ClientID) (*NodeCRDT, error) {
@@ -142,10 +143,10 @@ func (n *AdapterSecureNodeCRDT) SetKeyValue(key string, value interface{}, prvKe
 		n.nodeCrdt.tree.ABACPolicy,
 		secureAction)
 	if err != nil {
-		return "", err
+		return nil, "", err
 	}
 
-	return newNodeID, nil
+	return nil, newNodeID, nil
 }
 
 func (n *AdapterSecureNodeCRDT) GetNodeForKey(key string) (SecureNode, bool, error) {
@@ -156,7 +157,7 @@ func (n *AdapterSecureNodeCRDT) GetNodeForKey(key string) (SecureNode, bool, err
 	return &AdapterSecureNodeCRDT{nodeCrdt: internalNode}, ok, nil
 }
 
-func (n *AdapterSecureNodeCRDT) RemoveKeyValue(key string, prvKey string) error { // Tested
+func (n *AdapterSecureNodeCRDT) RemoveKeyValue(key string, prvKey string) (*Delta, error) { // Tested
 	secureAction := func(clientID ClientID) (*NodeCRDT, error) {
 		if err := n.nodeCrdt.RemoveKeyValue(key, clientID); err != nil {
 			return nil, fmt.Errorf("failed to remove key-value: %w", err)
@@ -164,7 +165,7 @@ func (n *AdapterSecureNodeCRDT) RemoveKeyValue(key string, prvKey string) error 
 		return n.nodeCrdt, nil
 	}
 
-	return performSecureAction(
+	err := performSecureAction(
 		true,
 		prvKey,
 		ActionModify,
@@ -172,6 +173,7 @@ func (n *AdapterSecureNodeCRDT) RemoveKeyValue(key string, prvKey string) error 
 		n.nodeCrdt.tree.ABACPolicy,
 		secureAction,
 	)
+	return nil, err
 }
 
 type AdapterSecureTreeCRDT struct {
@@ -199,7 +201,7 @@ func (c *AdapterSecureTreeCRDT) ABAC() *ABACPolicy {
 	return c.treeCrdt.ABACPolicy
 }
 
-func (c *AdapterSecureTreeCRDT) CreateAttachedNode(name string, nodeType NodeType, parentID NodeID, prvKey string) (SecureNode, error) { // Tested
+func (c *AdapterSecureTreeCRDT) CreateAttachedNode(name string, nodeType NodeType, parentID NodeID, prvKey string) (*Delta, SecureNode, error) { // Tested
 	var newNode *NodeCRDT
 
 	secureAction := func(clientID ClientID) (*NodeCRDT, error) {
@@ -217,13 +219,13 @@ func (c *AdapterSecureTreeCRDT) CreateAttachedNode(name string, nodeType NodeTyp
 		secureAction,
 	)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return &AdapterSecureNodeCRDT{nodeCrdt: newNode}, nil
+	return nil, &AdapterSecureNodeCRDT{nodeCrdt: newNode}, nil
 }
 
-func (c *AdapterSecureTreeCRDT) CreateNode(name string, nodeType NodeType, prvKey string) (SecureNode, error) { // Tested
+func (c *AdapterSecureTreeCRDT) CreateNode(name string, nodeType NodeType, prvKey string) (*Delta, SecureNode, error) { // Tested
 	var newNode *NodeCRDT
 
 	secureAction := func(clientID ClientID) (*NodeCRDT, error) {
@@ -242,13 +244,13 @@ func (c *AdapterSecureTreeCRDT) CreateNode(name string, nodeType NodeType, prvKe
 		secureAction,
 	)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	newNode.Nonce = nonce
 	newNode.Signature = signature
 
-	return &AdapterSecureNodeCRDT{nodeCrdt: newNode}, nil
+	return nil, &AdapterSecureNodeCRDT{nodeCrdt: newNode}, nil
 }
 
 func (c *AdapterSecureTreeCRDT) GetNode(id NodeID) (SecureNode, bool) {
@@ -283,7 +285,7 @@ func (c *AdapterSecureTreeCRDT) GetStringValueByPath(path string) (string, error
 	return c.treeCrdt.GetStringValueByPath(path)
 }
 
-func (c *AdapterSecureTreeCRDT) AddEdge(from, to NodeID, label string, prvKey string) error { // Tested
+func (c *AdapterSecureTreeCRDT) AddEdge(from, to NodeID, label string, prvKey string) (*Delta, error) { // Tested
 	secureAction := func(clientID ClientID) (*NodeCRDT, error) {
 		// Perform the actual edge addition
 		node, ok := c.treeCrdt.GetNode(from)
@@ -299,7 +301,7 @@ func (c *AdapterSecureTreeCRDT) AddEdge(from, to NodeID, label string, prvKey st
 	}
 
 	// Write to the parent's node.Nonce and node.Signature
-	return performSecureAction(
+	err := performSecureAction(
 		true,
 		prvKey,
 		ActionModify,
@@ -307,9 +309,10 @@ func (c *AdapterSecureTreeCRDT) AddEdge(from, to NodeID, label string, prvKey st
 		c.treeCrdt.ABACPolicy,
 		secureAction,
 	)
+	return nil, err
 }
 
-func (c *AdapterSecureTreeCRDT) RemoveEdge(from, to NodeID, prvKey string) error { // Tested
+func (c *AdapterSecureTreeCRDT) RemoveEdge(from, to NodeID, prvKey string) (*Delta, error) { // Tested
 	secureAction := func(clientID ClientID) (*NodeCRDT, error) {
 		node, ok := c.treeCrdt.GetNode(from)
 		if !ok {
@@ -322,7 +325,7 @@ func (c *AdapterSecureTreeCRDT) RemoveEdge(from, to NodeID, prvKey string) error
 		return node, nil
 	}
 
-	return performSecureAction(
+	err := performSecureAction(
 		true,
 		prvKey,
 		ActionModify,
@@ -330,9 +333,10 @@ func (c *AdapterSecureTreeCRDT) RemoveEdge(from, to NodeID, prvKey string) error
 		c.treeCrdt.ABACPolicy,
 		secureAction,
 	)
+	return nil, err
 }
 
-func (c *AdapterSecureTreeCRDT) AppendEdge(from, to NodeID, label string, prvKey string) error { // Tested
+func (c *AdapterSecureTreeCRDT) AppendEdge(from, to NodeID, label string, prvKey string) (*Delta, error) { // Tested
 	secureAction := func(clientID ClientID) (*NodeCRDT, error) {
 		node, ok := c.treeCrdt.GetNode(from)
 		if !ok {
@@ -345,7 +349,7 @@ func (c *AdapterSecureTreeCRDT) AppendEdge(from, to NodeID, label string, prvKey
 		return node, nil
 	}
 
-	return performSecureAction(
+	err := performSecureAction(
 		true,
 		prvKey,
 		ActionModify, // We treat appending a child as modifying the parent
@@ -353,9 +357,10 @@ func (c *AdapterSecureTreeCRDT) AppendEdge(from, to NodeID, label string, prvKey
 		c.treeCrdt.ABACPolicy,
 		secureAction,
 	)
+	return nil, err
 }
 
-func (c *AdapterSecureTreeCRDT) PrependEdge(from, to NodeID, label string, prvKey string) error { // Tested
+func (c *AdapterSecureTreeCRDT) PrependEdge(from, to NodeID, label string, prvKey string) (*Delta, error) { // Tested
 	secureAction := func(clientID ClientID) (*NodeCRDT, error) {
 		node, ok := c.treeCrdt.GetNode(from)
 		if !ok {
@@ -368,7 +373,7 @@ func (c *AdapterSecureTreeCRDT) PrependEdge(from, to NodeID, label string, prvKe
 		return node, nil
 	}
 
-	return performSecureAction(
+	err := performSecureAction(
 		true,
 		prvKey,
 		ActionModify, // Modifying the parent node structure
@@ -376,9 +381,10 @@ func (c *AdapterSecureTreeCRDT) PrependEdge(from, to NodeID, label string, prvKe
 		c.treeCrdt.ABACPolicy,
 		secureAction,
 	)
+	return nil, err
 }
 
-func (c *AdapterSecureTreeCRDT) InsertEdgeLeft(from, to NodeID, label string, sibling NodeID, prvKey string) error { // Tested
+func (c *AdapterSecureTreeCRDT) InsertEdgeLeft(from, to NodeID, label string, sibling NodeID, prvKey string) (*Delta, error) { // Tested
 	secureAction := func(clientID ClientID) (*NodeCRDT, error) {
 		node, ok := c.treeCrdt.Nodes[from]
 		if !ok {
@@ -391,7 +397,7 @@ func (c *AdapterSecureTreeCRDT) InsertEdgeLeft(from, to NodeID, label string, si
 		return node, nil
 	}
 
-	return performSecureAction(
+	err := performSecureAction(
 		true,
 		prvKey,
 		ActionModify,
@@ -399,9 +405,10 @@ func (c *AdapterSecureTreeCRDT) InsertEdgeLeft(from, to NodeID, label string, si
 		c.treeCrdt.ABACPolicy,
 		secureAction,
 	)
+	return nil, err
 }
 
-func (c *AdapterSecureTreeCRDT) InsertEdgeRight(from, to NodeID, label string, sibling NodeID, prvKey string) error {
+func (c *AdapterSecureTreeCRDT) InsertEdgeRight(from, to NodeID, label string, sibling NodeID, prvKey string) (*Delta, error) {
 	secureAction := func(clientID ClientID) (*NodeCRDT, error) {
 		node, ok := c.treeCrdt.Nodes[from]
 		if !ok {
@@ -414,7 +421,7 @@ func (c *AdapterSecureTreeCRDT) InsertEdgeRight(from, to NodeID, label string, s
 		return node, nil
 	}
 
-	return performSecureAction(
+	err := performSecureAction(
 		true,
 		prvKey,
 		ActionModify,
@@ -422,6 +429,7 @@ func (c *AdapterSecureTreeCRDT) InsertEdgeRight(from, to NodeID, label string, s
 		c.treeCrdt.ABACPolicy,
 		secureAction,
 	)
+	return nil, err
 }
 
 func (c *AdapterSecureTreeCRDT) Merge(c2 SecureTree, prvKey string) error { // TODO: test
