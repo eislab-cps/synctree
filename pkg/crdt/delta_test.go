@@ -3,6 +3,8 @@ package crdt
 import (
 	"testing"
 
+	"github.com/eislab-cps/synctree/pkg/core"
+	"github.com/eislab-cps/synctree/pkg/vectorclock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -38,9 +40,9 @@ func TestSecureTreeWithDelta(t *testing.T) {
 	assert.NotNil(t, currentClock)
 
 	// Test delta generation (even with empty history, it should work)
-	testDelta := deltaSync.GenerateDelta(VectorClock{}, ClientID("test"))
+	testDelta := deltaSync.GenerateDelta(vectorclock.VectorClock{}, core.ClientID("test"))
 	assert.NotNil(t, testDelta)
-	assert.Equal(t, ClientID("test"), testDelta.SourceID)
+	assert.Equal(t, core.ClientID("test"), testDelta.SourceID)
 }
 
 // TestDeltaWithSecureTreeOperations tests various SecureTree operations
@@ -78,7 +80,7 @@ func TestDeltaWithSecureTreeOperations(t *testing.T) {
 	assert.Equal(t, "value", literal)
 
 	// Test delta functionality still works
-	testDelta := deltaSync.GenerateDelta(VectorClock{}, ClientID("test"))
+	testDelta := deltaSync.GenerateDelta(vectorclock.VectorClock{}, core.ClientID("test"))
 	assert.NotNil(t, testDelta)
 }
 
@@ -96,15 +98,15 @@ func TestDeltaHistoryLimit(t *testing.T) {
 	// Set a small limit for testing
 	deltaSync.maxHistory = 3
 
-	clientID := ClientID("test-client")
+	clientID := core.ClientID("test-client")
 
 	// Add more operations than the limit
 	for i := 0; i < 5; i++ {
 		op := DeltaOperation{
 			Type:     OpCreateNode,
-			NodeID:   NodeID("node-" + string(rune('0'+i))),
+			NodeID:   core.NodeID("node-" + string(rune('0'+i))),
 			ClientID: clientID,
-			Clock:    VectorClock{clientID: i + 1},
+			Clock:    vectorclock.VectorClock{clientID: i + 1},
 		}
 		deltaSync.RecordOperation(op)
 	}
@@ -113,9 +115,9 @@ func TestDeltaHistoryLimit(t *testing.T) {
 	assert.Len(t, deltaSync.history, 3)
 	
 	// Should have operations for nodes 2, 3, 4 (the last 3)
-	assert.Equal(t, NodeID("node-2"), deltaSync.history[0].NodeID)
-	assert.Equal(t, NodeID("node-3"), deltaSync.history[1].NodeID)
-	assert.Equal(t, NodeID("node-4"), deltaSync.history[2].NodeID)
+	assert.Equal(t, core.NodeID("node-2"), deltaSync.history[0].NodeID)
+	assert.Equal(t, core.NodeID("node-3"), deltaSync.history[1].NodeID)
+	assert.Equal(t, core.NodeID("node-4"), deltaSync.history[2].NodeID)
 }
 
 // TestMultipleSecureTreeSync tests syncing between multiple SecureTrees using delta
@@ -152,13 +154,13 @@ func TestMultipleSecureTreeSync(t *testing.T) {
 	assert.Error(t, err) // Should fail because node doesn't exist
 
 	// Test that both delta syncs work independently
-	delta1 := deltaSync1.GenerateDelta(VectorClock{}, ClientID("sync1"))
-	delta2 := deltaSync2.GenerateDelta(VectorClock{}, ClientID("sync2"))
+	delta1 := deltaSync1.GenerateDelta(vectorclock.VectorClock{}, core.ClientID("sync1"))
+	delta2 := deltaSync2.GenerateDelta(vectorclock.VectorClock{}, core.ClientID("sync2"))
 	
 	assert.NotNil(t, delta1)
 	assert.NotNil(t, delta2)
-	assert.Equal(t, ClientID("sync1"), delta1.SourceID)
-	assert.Equal(t, ClientID("sync2"), delta2.SourceID)
+	assert.Equal(t, core.ClientID("sync1"), delta1.SourceID)
+	assert.Equal(t, core.ClientID("sync2"), delta2.SourceID)
 
 	// Note: Actual delta application would require implementing the 
 	// missing functionality to convert SecureTree operations to 

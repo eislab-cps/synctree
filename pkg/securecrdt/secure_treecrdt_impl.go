@@ -22,7 +22,7 @@ func performSecureAction(
 	abac *abac.ABACPolicy,
 	actionFn func(core.ClientID) (crdt.Mutation, *crdt.NodeCRDT, error),
 ) (crdt.Mutation, error) {
-	identity, err := crypto.CreateIdendityFromString(prvKey)
+	identity, err := crypto.CreateIdentityFromString(prvKey)
 	if err != nil {
 		return crdt.Mutation{}, fmt.Errorf("failed to create identity: %w", err)
 	}
@@ -184,7 +184,7 @@ type SecureTreeCRDTImpl struct {
 }
 
 func NewSecureTreeCRDT(prvKey string) (SecureTreeCRDT, error) {
-	identity, err := crypto.CreateIdendityFromString(prvKey)
+	identity, err := crypto.CreateIdentityFromString(prvKey)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create identity from string: %w", err)
 	}
@@ -250,7 +250,7 @@ func (c *SecureTreeCRDTImpl) CreateNode(name string, nodeType core.NodeType, prv
 		return crdt.Mutation{}, nil, err
 	}
 
-	newNode.Nounce = nounce
+	newNode.Nonce = nounce
 	newNode.Signature = signature
 
 	return delta, &SecureNodeCRDTImpl{nodeCrdt: newNode}, nil
@@ -445,7 +445,7 @@ func (c *SecureTreeCRDTImpl) ApplyMutation(mut crdt.Mutation, prvKey string) err
 }
 
 func (c *SecureTreeCRDTImpl) ImportJSON(rawJSON []byte, prvKey string) (core.NodeID, error) {
-	identity, err := crypto.CreateIdendityFromString(prvKey)
+	identity, err := crypto.CreateIdentityFromString(prvKey)
 	if err != nil {
 		return "", fmt.Errorf("failed to create identity from string: %w", err)
 	}
@@ -460,7 +460,7 @@ func (c *SecureTreeCRDTImpl) ImportJSON(rawJSON []byte, prvKey string) (core.Nod
 }
 
 func (c *SecureTreeCRDTImpl) ImportJSONToMap(rawJSON []byte, parentID core.NodeID, key string, prvKey string) (core.NodeID, error) {
-	identity, err := crypto.CreateIdendityFromString(prvKey)
+	identity, err := crypto.CreateIdentityFromString(prvKey)
 	if err != nil {
 		return "", fmt.Errorf("failed to create identity from string: %w", err)
 	}
@@ -475,7 +475,7 @@ func (c *SecureTreeCRDTImpl) ImportJSONToMap(rawJSON []byte, parentID core.NodeI
 }
 
 func (c *SecureTreeCRDTImpl) ImportJSONToArray(rawJSON []byte, parentID core.NodeID, prvKey string) (core.NodeID, error) {
-	identity, err := crypto.CreateIdendityFromString(prvKey)
+	identity, err := crypto.CreateIdentityFromString(prvKey)
 	if err != nil {
 		return "", fmt.Errorf("failed to create identity from string: %w", err)
 	}

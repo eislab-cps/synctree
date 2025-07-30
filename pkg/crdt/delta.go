@@ -4,6 +4,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"time"
+
+	"github.com/eislab-cps/synctree/pkg/core"
+	"github.com/eislab-cps/synctree/pkg/vectorclock"
 )
 
 // Operation types for delta synchronization
@@ -21,32 +24,32 @@ const (
 
 // DeltaOperation represents a single operation in a delta
 type DeltaOperation struct {
-	Type      OperationType          `json:"type"`
-	NodeID    NodeID                 `json:"node_id,omitempty"`
-	ParentID  NodeID                 `json:"parent_id,omitempty"`
-	EdgeInfo  *EdgeInfo              `json:"edge_info,omitempty"`
-	Value     interface{}            `json:"value,omitempty"`
-	Clock     VectorClock            `json:"clock"`
-	ClientID  ClientID               `json:"client_id"`
+	Type      OperationType                   `json:"type"`
+	NodeID    core.NodeID                     `json:"node_id,omitempty"`
+	ParentID  core.NodeID                     `json:"parent_id,omitempty"`
+	EdgeInfo  *EdgeInfo                       `json:"edge_info,omitempty"`
+	Value     interface{}                     `json:"value,omitempty"`
+	Clock     vectorclock.VectorClock         `json:"clock"`
+	ClientID  core.ClientID                   `json:"client_id"`
 	Timestamp time.Time              `json:"timestamp"`
 	Metadata  map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // EdgeInfo contains information about edge operations
 type EdgeInfo struct {
-	FromNodeID NodeID `json:"from_node_id"`
-	ToNodeID   NodeID `json:"to_node_id"`
-	Label      string `json:"label"`
-	Position   int    `json:"position,omitempty"`
+	FromNodeID core.NodeID `json:"from_node_id"`
+	ToNodeID   core.NodeID `json:"to_node_id"`
+	Label      string      `json:"label"`
+	Position   int         `json:"position,omitempty"`
 }
 
 // Delta represents a collection of operations between two states
 type Delta struct {
-	Operations []DeltaOperation `json:"operations"`
-	FromClock  VectorClock      `json:"from_clock"`
-	ToClock    VectorClock      `json:"to_clock"`
-	SourceID   ClientID         `json:"source_id"`
-	Created    time.Time        `json:"created"`
+	Operations []DeltaOperation        `json:"operations"`
+	FromClock  vectorclock.VectorClock `json:"from_clock"`
+	ToClock    vectorclock.VectorClock `json:"to_clock"`
+	SourceID   core.ClientID           `json:"source_id"`
+	Created    time.Time               `json:"created"`
 }
 
 // DeltaSync provides delta synchronization capabilities for TreeCRDT
@@ -76,7 +79,7 @@ func (ds *DeltaSync) RecordOperation(op DeltaOperation) {
 }
 
 // GenerateDelta creates a delta from a given clock state
-func (ds *DeltaSync) GenerateDelta(fromClock VectorClock, clientID ClientID) *Delta {
+func (ds *DeltaSync) GenerateDelta(fromClock vectorclock.VectorClock, clientID core.ClientID) *Delta {
 	operations := []DeltaOperation{}
 
 	// Find all operations that happened after fromClock
@@ -276,8 +279,8 @@ func (ds *DeltaSync) applyUpdateClock(op DeltaOperation) error {
 }
 
 // GetVectorClock returns the current vector clock of the tree
-func (t *TreeCRDT) GetVectorClock() VectorClock {
-	clock := make(VectorClock)
+func (t *TreeCRDT) GetVectorClock() vectorclock.VectorClock {
+	clock := make(vectorclock.VectorClock)
 
 	// Merge clocks from all nodes
 	for _, node := range t.Nodes {
@@ -288,31 +291,39 @@ func (t *TreeCRDT) GetVectorClock() VectorClock {
 }
 
 // Helper functions for clock operations
-func clockDominatesOrEqual(a, b VectorClock) bool {
-	comp := compareClocks(a, b)
-	return comp == ClockDominates || comp == ClockEqual
-}
-
-func mergeClock(a, b VectorClock) VectorClock {
-	result := make(VectorClock)
-
-	// Copy all entries from a
-	for k, v := range a {
-		result[k] = v
+func clockDominatesOrEqual(a, b vectorclock.VectorClock) bool {
+	// Check if a dominates or equals b
+	if vectorclock.ClocksEqual(a, b) {
+		return true
 	}
-
-	// Merge with b, taking max values
-	for k, v := range b {
-		if existing, ok := result[k]; ok {
-			if v > existing {
-				result[k] = v
-			}
-		} else {
-			result[k] = v
+	
+	// Check if a dominates b (all elements in a >= corresponding elements in b)
+	keys := make(map[core.ClientID]struct{})
+	for k := range a {
+		keys[k] = struct{}{}
+	}
+	for k := range b {
+		keys[k] = struct{}{}
+	}
+	
+	for k := range keys {
+		av, aok := a[k]
+		bv, bok := b[k]
+		if !aok {
+			av = 0
+		}
+		if !bok {
+			bv = 0
+		}
+		if av < bv {
+			return false // a does not dominate b
 		}
 	}
+	return true
+}
 
-	return result
+func mergeClock(a, b vectorclock.VectorClock) vectorclock.VectorClock {
+	return vectorclock.MergeClocks(a, b)
 }
 
 // Serialization methods

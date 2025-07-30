@@ -3,6 +3,8 @@ package crdt
 import (
 	"testing"
 
+	"github.com/eislab-cps/synctree/pkg/core"
+	"github.com/eislab-cps/synctree/pkg/vectorclock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -21,10 +23,10 @@ func TestDeltaSerialization(t *testing.T) {
 				Type:     OpSetLiteral,
 				NodeID:   "test-node",
 				Value:    "test-value",
-				ClientID: ClientID("test-client"),
+				ClientID: core.ClientID("test-client"),
 			},
 		},
-		SourceID: ClientID("test-client"),
+		SourceID: core.ClientID("test-client"),
 	}
 
 	// Test JSON serialization
@@ -61,13 +63,13 @@ func TestBasicDeltaSync(t *testing.T) {
 
 // TestClockOperations tests vector clock operations
 func TestClockOperations(t *testing.T) {
-	clientA := ClientID("client-a")
-	clientB := ClientID("client-b")
+	clientA := core.ClientID("client-a")
+	clientB := core.ClientID("client-b")
 
 	// Test clock comparison
-	clock1 := VectorClock{clientA: 1}
-	clock2 := VectorClock{clientA: 2}
-	clock3 := VectorClock{clientA: 1, clientB: 1}
+	clock1 := vectorclock.VectorClock{clientA: 1}
+	clock2 := vectorclock.VectorClock{clientA: 2}
+	clock3 := vectorclock.VectorClock{clientA: 1, clientB: 1}
 
 	assert.True(t, clockDominatesOrEqual(clock2, clock1))
 	assert.False(t, clockDominatesOrEqual(clock1, clock2))
@@ -75,11 +77,11 @@ func TestClockOperations(t *testing.T) {
 
 	// Test clock merging
 	merged := mergeClock(clock1, clock3)
-	expected := VectorClock{clientA: 1, clientB: 1}
+	expected := vectorclock.VectorClock{clientA: 1, clientB: 1}
 	assert.Equal(t, expected, merged)
 
 	merged2 := mergeClock(clock2, clock3)
-	expected2 := VectorClock{clientA: 2, clientB: 1}
+	expected2 := vectorclock.VectorClock{clientA: 2, clientB: 1}
 	assert.Equal(t, expected2, merged2)
 }
 
@@ -98,16 +100,16 @@ func TestDeltaOperationRecording(t *testing.T) {
 	op1 := DeltaOperation{
 		Type:     OpCreateNode,
 		NodeID:   "node1",
-		ClientID: ClientID("client1"),
-		Clock:    VectorClock{ClientID("client1"): 1},
+		ClientID: core.ClientID("client1"),
+		Clock:    vectorclock.VectorClock{core.ClientID("client1"): 1},
 	}
 	
 	op2 := DeltaOperation{
 		Type:     OpSetLiteral,
 		NodeID:   "node1",
 		Value:    "value1",
-		ClientID: ClientID("client1"),
-		Clock:    VectorClock{ClientID("client1"): 2},
+		ClientID: core.ClientID("client1"),
+		Clock:    vectorclock.VectorClock{core.ClientID("client1"): 2},
 	}
 
 	deltaSync.RecordOperation(op1)
@@ -129,14 +131,14 @@ func TestDeltaGeneration(t *testing.T) {
 	tree := adapter.treeCrdt
 	deltaSync := NewDeltaSync(tree)
 
-	clientID := ClientID("test-client")
+	clientID := core.ClientID("test-client")
 
 	// Record operations
 	op1 := DeltaOperation{
 		Type:     OpCreateNode,
 		NodeID:   "node1",
 		ClientID: clientID,
-		Clock:    VectorClock{clientID: 1},
+		Clock:    vectorclock.VectorClock{clientID: 1},
 	}
 	
 	op2 := DeltaOperation{
@@ -144,14 +146,14 @@ func TestDeltaGeneration(t *testing.T) {
 		NodeID:   "node1",
 		Value:    "value1",
 		ClientID: clientID,
-		Clock:    VectorClock{clientID: 2},
+		Clock:    vectorclock.VectorClock{clientID: 2},
 	}
 
 	deltaSync.RecordOperation(op1)
 	deltaSync.RecordOperation(op2)
 
 	// Generate delta from empty clock (should include all operations)
-	delta := deltaSync.GenerateDelta(VectorClock{}, clientID)
+	delta := deltaSync.GenerateDelta(vectorclock.VectorClock{}, clientID)
 	
 	assert.NotNil(t, delta)
 	assert.Len(t, delta.Operations, 2)
@@ -160,7 +162,7 @@ func TestDeltaGeneration(t *testing.T) {
 	assert.Equal(t, OpSetLiteral, delta.Operations[1].Type)
 
 	// Generate delta from partial clock (should include only newer operations)
-	fromClock := VectorClock{clientID: 1}
+	fromClock := vectorclock.VectorClock{clientID: 1}
 	delta2 := deltaSync.GenerateDelta(fromClock, clientID)
 	
 	assert.NotNil(t, delta2)
