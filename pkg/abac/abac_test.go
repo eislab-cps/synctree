@@ -1,15 +1,16 @@
-package crdt
+package abac
 
 import (
 	"testing"
 
 	"github.com/eislab-cps/synctree/internal/crypto"
+	"github.com/eislab-cps/synctree/pkg/core"
 	"github.com/stretchr/testify/assert"
 )
 
 type mockTree struct{}
 
-func (m *mockTree) isDescendant(root NodeID, target NodeID) bool {
+func (m *mockTree) IsDescendant(root core.NodeID, target core.NodeID) bool {
 	return root == "parent" && target == "child"
 }
 
@@ -24,10 +25,10 @@ func TestABACPolicyWithModifyOnly(t *testing.T) {
 
 	clientA := "alice"
 	clientB := "bob"
-	nodeX := NodeID("node-x")
-	nodeY := NodeID("node-y")
-	parent := NodeID("parent")
-	child := NodeID("child")
+	nodeX := core.NodeID("node-x")
+	nodeY := core.NodeID("node-y")
+	parent := core.NodeID("parent")
+	child := core.NodeID("child")
 
 	// Setup rules
 	policy.Allow(clientA, ActionModify, "*", false)   // Alice can modify anything
@@ -38,7 +39,7 @@ func TestABACPolicyWithModifyOnly(t *testing.T) {
 		name     string
 		id       string
 		action   ABACAction
-		nodeID   NodeID
+		nodeID   core.NodeID
 		expected bool
 	}{
 		{"Alice modify node-x", clientA, ActionModify, nodeX, true},
@@ -69,7 +70,7 @@ func TestABACPolicyUpdateAndRemove(t *testing.T) {
 
 	policy := NewABACPolicy(tree, identity.ID(), identity)
 	client := "carol"
-	node := NodeID("node-test")
+	node := core.NodeID("node-test")
 
 	// Initially deny
 	if policy.IsAllowed(client, ActionModify, node) {

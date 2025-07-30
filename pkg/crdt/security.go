@@ -8,16 +8,17 @@ import (
 	"sort"
 
 	"github.com/eislab-cps/synctree/internal/crypto"
+	"github.com/eislab-cps/synctree/pkg/core"
 	"github.com/eislab-cps/synctree/pkg/random"
 	log "github.com/sirupsen/logrus"
 )
 
 type nodeDigest struct {
-	ID           NodeID         `json:"id"`
-	ParentID     NodeID         `json:"parentid"`
+	ID           core.NodeID    `json:"id"`
+	ParentID     core.NodeID    `json:"parentid"`
 	Edges        []*EdgeCRDT    `json:"edges"`
 	Clock        map[string]int `json:"clock"`
-	Owner        ClientID       `json:"owner"`
+	Owner        core.ClientID  `json:"owner"`
 	IsRoot       bool           `json:"isroot"`
 	IsMap        bool           `json:"ismap"`
 	IsArray      bool           `json:"isarray"`

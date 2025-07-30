@@ -1,9 +1,13 @@
-package crdt
+package securecrdt
 
 import (
 	"testing"
 
 	"github.com/eislab-cps/synctree/internal/crypto"
+	"github.com/eislab-cps/synctree/pkg/abac"
+	"github.com/eislab-cps/synctree/pkg/core"
+	"github.com/eislab-cps/synctree/pkg/crdt"
+	"github.com/eislab-cps/synctree/pkg/utils"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -12,7 +16,7 @@ func TestSecureTreeAdapterBasic(t *testing.T) {
 	prvKeyInvalid := "ed26531bac1838e519c2c6562ac717b22aac041730f0d753d3ad35b76b5f4924"
 	initialJSON := []byte(`["A", "B", "B"]`)
 
-	c, err := NewSecureTree(prvKey)
+	c, err := NewSecureTreeCRDT(prvKey)
 	assert.Nil(t, err, "NewSecureTree should not return an error")
 
 	_, err = c.ImportJSON(initialJSON, prvKey)
@@ -35,7 +39,7 @@ func TestSecureTreeAdapterBasic(t *testing.T) {
 		"B"
 	]`)
 
-	compareJSON(t, expectedJSON, exportedJSON)
+	utils.CompareJSON(t, expectedJSON, exportedJSON)
 }
 
 func TestSecureTreeAdapterSetLiteral(t *testing.T) {
@@ -43,7 +47,7 @@ func TestSecureTreeAdapterSetLiteral(t *testing.T) {
 	prvKeyInvalid := "ed26531bac1838e519c2c6562ac717b22aac041730f0d753d3ad35b76b5f4924"
 	initialJSON := []byte(`["A", "B", "B"]`)
 
-	c, err := NewSecureTree(prvKey)
+	c, err := NewSecureTreeCRDT(prvKey)
 	assert.Nil(t, err)
 
 	_, err = c.ImportJSON(initialJSON, prvKey)
@@ -65,7 +69,7 @@ func TestSecureTreeAdapterSetLiteral(t *testing.T) {
 		_, err = aNode.SetLiteral("AA", prvKey)
 		assert.Nil(t, err)
 
-		secureNode := aNode.(*AdapterSecureNodeCRDT)
+		secureNode := aNode.(*SecureNodeCRDTImpl)
 		assert.NotEmpty(t, secureNode.nodeCrdt.Nonce)
 		assert.NotEmpty(t, secureNode.nodeCrdt.Signature)
 	})
@@ -75,12 +79,12 @@ func TestSecureTreeAdapterCreateMapNode(t *testing.T) {
 	prvKey := "d6eb959e9aec2e6fdc44b5862b269e987b8a4d6f2baca542d8acaa97ee5e74f6"
 	prvKeyInvalid := "ed26531bac1838e519c2c6562ac717b22aac041730f0d753d3ad35b76b5f4924"
 
-	c, err := NewSecureTree(prvKey)
+	c, err := NewSecureTreeCRDT(prvKey)
 	assert.Nil(t, err)
 
 	root, err := c.GetNodeByPath("/")
 	assert.Nil(t, err)
-	secureNode := root.(*AdapterSecureNodeCRDT)
+	secureNode := root.(*SecureNodeCRDTImpl)
 
 	t.Run("Reject CreateMapNode with invalid key", func(t *testing.T) {
 		_, _, err := secureNode.CreateMapNode(prvKeyInvalid)
@@ -92,7 +96,7 @@ func TestSecureTreeAdapterCreateMapNode(t *testing.T) {
 		_, mapNode, err := secureNode.CreateMapNode(prvKey)
 		assert.Nil(t, err)
 
-		_, ok := mapNode.(*AdapterSecureNodeCRDT)
+		_, ok := mapNode.(*SecureNodeCRDTImpl)
 		assert.True(t, ok, "returned node should be of type *AdapterSecureNodeCRDT")
 	})
 }
@@ -101,13 +105,13 @@ func TestSecureTreeAdapterSetKeyValue(t *testing.T) {
 	prvKey := "d6eb959e9aec2e6fdc44b5862b269e987b8a4d6f2baca542d8acaa97ee5e74f6"
 	prvKeyInvalid := "ed26531bac1838e519c2c6562ac717b22aac041730f0d753d3ad35b76b5f4924"
 
-	c, err := NewSecureTree(prvKey)
+	c, err := NewSecureTreeCRDT(prvKey)
 	assert.Nil(t, err)
 
 	// Get the root node and create a map node under it
 	root, err := c.GetNodeByPath("/")
 	assert.Nil(t, err)
-	_, mapNode, err := root.(*AdapterSecureNodeCRDT).CreateMapNode(prvKey)
+	_, mapNode, err := root.(*SecureNodeCRDTImpl).CreateMapNode(prvKey)
 	assert.Nil(t, err)
 
 	t.Run("Reject SetKeyValue on map node with invalid key", func(t *testing.T) {
@@ -132,13 +136,13 @@ func TestSecureTreeAdapterRemoveKeyValue(t *testing.T) {
 	prvKey := "d6eb959e9aec2e6fdc44b5862b269e987b8a4d6f2baca542d8acaa97ee5e74f6"
 	prvKeyInvalid := "ed26531bac1838e519c2c6562ac717b22aac041730f0d753d3ad35b76b5f4924"
 
-	c, err := NewSecureTree(prvKey)
+	c, err := NewSecureTreeCRDT(prvKey)
 	assert.Nil(t, err)
 
 	// Create map node under root and add a key-value
 	root, err := c.GetNodeByPath("/")
 	assert.Nil(t, err)
-	_, mapNode, err := root.(*AdapterSecureNodeCRDT).CreateMapNode(prvKey)
+	_, mapNode, err := root.(*SecureNodeCRDTImpl).CreateMapNode(prvKey)
 	assert.Nil(t, err)
 
 	_, _, err = mapNode.SetKeyValue("keyToRemove", "value", prvKey)
@@ -164,24 +168,24 @@ func TestSecureTreeAdapterCreateAttachedNode(t *testing.T) {
 	prvKey := "d6eb959e9aec2e6fdc44b5862b269e987b8a4d6f2baca542d8acaa97ee5e74f6"
 	prvKeyInvalid := "ed26531bac1838e519c2c6562ac717b22aac041730f0d753d3ad35b76b5f4924"
 
-	c, err := NewSecureTree(prvKey)
+	c, err := NewSecureTreeCRDT(prvKey)
 	assert.Nil(t, err)
 
 	// Create a parent map node under root
 	root, err := c.GetNodeByPath("/")
 	assert.Nil(t, err)
-	_, parentNode, err := root.(*AdapterSecureNodeCRDT).CreateMapNode(prvKey)
+	_, parentNode, err := root.(*SecureNodeCRDTImpl).CreateMapNode(prvKey)
 	assert.Nil(t, err)
-	parentID := parentNode.(*AdapterSecureNodeCRDT).nodeCrdt.ID
+	parentID := parentNode.(*SecureNodeCRDTImpl).nodeCrdt.ID
 
 	t.Run("Reject CreateAttachedNode with invalid key", func(t *testing.T) {
-		_, _, err := c.CreateAttachedNode("child", Literal, parentID, prvKeyInvalid)
+		_, _, err := c.CreateAttachedNode("child", crdt.Literal, parentID, prvKeyInvalid)
 		assert.NotNil(t, err)
 		assert.Contains(t, err.Error(), "not allowed")
 	})
 
 	t.Run("Allow CreateAttachedNode with valid key", func(t *testing.T) {
-		_, childNode, err := c.CreateAttachedNode("child", Map, parentID, prvKey)
+		_, childNode, err := c.CreateAttachedNode("child", crdt.Map, parentID, prvKey)
 		assert.Nil(t, err)
 		assert.NotNil(t, childNode)
 	})
@@ -191,16 +195,16 @@ func TestSecureTreeAdapterCreateNode(t *testing.T) {
 	prvKey := "d6eb959e9aec2e6fdc44b5862b269e987b8a4d6f2baca542d8acaa97ee5e74f6"
 	prvKeyInvalid := "ed26531bac1838e519c2c6562ac717b22aac041730f0d753d3ad35b76b5f4924"
 
-	c, err := NewSecureTree(prvKey)
+	c, err := NewSecureTreeCRDT(prvKey)
 	assert.Nil(t, err)
 
 	t.Run("Reject CreateNode with invalid key", func(t *testing.T) {
-		_, _, err := c.CreateNode("myNode", Map, prvKeyInvalid)
+		_, _, err := c.CreateNode("myNode", crdt.Map, prvKeyInvalid)
 		assert.Nil(t, err) // This is actually ok, as long as the node is not attached to the tree
 	})
 
 	t.Run("Allow CreateNode with valid key", func(t *testing.T) {
-		_, node, err := c.CreateNode("myNode", Map, prvKey)
+		_, node, err := c.CreateNode("myNode", crdt.Map, prvKey)
 		assert.Nil(t, err)
 		assert.NotNil(t, node)
 	})
@@ -210,21 +214,21 @@ func TestSecureTreeAdapterAddEdge(t *testing.T) {
 	prvKey := "d6eb959e9aec2e6fdc44b5862b269e987b8a4d6f2baca542d8acaa97ee5e74f6"
 	prvKeyInvalid := "ed26531bac1838e519c2c6562ac717b22aac041730f0d753d3ad35b76b5f4924"
 
-	c, err := NewSecureTree(prvKey)
+	c, err := NewSecureTreeCRDT(prvKey)
 	assert.Nil(t, err)
 
 	// Create fromNode under root
 	root, err := c.GetNodeByPath("/")
 	assert.Nil(t, err)
 
-	_, fromNode, err := root.(*AdapterSecureNodeCRDT).CreateMapNode(prvKey)
+	_, fromNode, err := root.(*SecureNodeCRDTImpl).CreateMapNode(prvKey)
 	assert.Nil(t, err)
-	fromNodeID := fromNode.(*AdapterSecureNodeCRDT).nodeCrdt.ID
+	fromNodeID := fromNode.(*SecureNodeCRDTImpl).nodeCrdt.ID
 
 	// Create toNode as detached node (not attached to root)
-	_, toNode, err := c.CreateNode("detachedNode", Map, prvKey)
+	_, toNode, err := c.CreateNode("detachedNode", crdt.Map, prvKey)
 	assert.Nil(t, err)
-	toNodeID := toNode.(*AdapterSecureNodeCRDT).nodeCrdt.ID
+	toNodeID := toNode.(*SecureNodeCRDTImpl).nodeCrdt.ID
 
 	t.Run("Reject AddEdge with invalid key", func(t *testing.T) {
 		_, err := c.AddEdge(fromNodeID, toNodeID, "edgeLabel", prvKeyInvalid)
@@ -242,21 +246,21 @@ func TestSecureTreeAdapterRemoveEdge(t *testing.T) {
 	prvKey := "d6eb959e9aec2e6fdc44b5862b269e987b8a4d6f2baca542d8acaa97ee5e74f6"
 	prvKeyInvalid := "ed26531bac1838e519c2c6562ac717b22aac041730f0d753d3ad35b76b5f4924"
 
-	c, err := NewSecureTree(prvKey)
+	c, err := NewSecureTreeCRDT(prvKey)
 	assert.Nil(t, err)
 
 	// Create fromNode under root
 	root, err := c.GetNodeByPath("/")
 	assert.Nil(t, err)
 
-	_, fromNode, err := root.(*AdapterSecureNodeCRDT).CreateMapNode(prvKey)
+	_, fromNode, err := root.(*SecureNodeCRDTImpl).CreateMapNode(prvKey)
 	assert.Nil(t, err)
-	fromNodeID := fromNode.(*AdapterSecureNodeCRDT).nodeCrdt.ID
+	fromNodeID := fromNode.(*SecureNodeCRDTImpl).nodeCrdt.ID
 
 	// Create toNode as detached node
-	_, toNode, err := c.CreateNode("detachedNode", Map, prvKey)
+	_, toNode, err := c.CreateNode("detachedNode", crdt.Map, prvKey)
 	assert.Nil(t, err)
-	toNodeID := toNode.(*AdapterSecureNodeCRDT).nodeCrdt.ID
+	toNodeID := toNode.(*SecureNodeCRDTImpl).nodeCrdt.ID
 
 	// First: Add the edge (valid)
 	_, err = c.AddEdge(fromNodeID, toNodeID, "edgeLabel", prvKey)
@@ -278,21 +282,21 @@ func TestSecureTreeAdapterAppendEdge(t *testing.T) {
 	prvKey := "d6eb959e9aec2e6fdc44b5862b269e987b8a4d6f2baca542d8acaa97ee5e74f6"
 	prvKeyInvalid := "ed26531bac1838e519c2c6562ac717b22aac041730f0d753d3ad35b76b5f4924"
 
-	c, err := NewSecureTree(prvKey)
+	c, err := NewSecureTreeCRDT(prvKey)
 	assert.Nil(t, err)
 
 	// Create fromNode under root
 	root, err := c.GetNodeByPath("/")
 	assert.Nil(t, err)
 
-	_, fromNode, err := root.(*AdapterSecureNodeCRDT).CreateMapNode(prvKey)
+	_, fromNode, err := root.(*SecureNodeCRDTImpl).CreateMapNode(prvKey)
 	assert.Nil(t, err)
-	fromNodeID := fromNode.(*AdapterSecureNodeCRDT).nodeCrdt.ID
+	fromNodeID := fromNode.(*SecureNodeCRDTImpl).nodeCrdt.ID
 
 	// Create toNode as detached node
-	_, toNode, err := c.CreateNode("detachedNode", Map, prvKey)
+	_, toNode, err := c.CreateNode("detachedNode", crdt.Map, prvKey)
 	assert.Nil(t, err)
-	toNodeID := toNode.(*AdapterSecureNodeCRDT).nodeCrdt.ID
+	toNodeID := toNode.(*SecureNodeCRDTImpl).nodeCrdt.ID
 
 	t.Run("Reject AppendEdge with invalid key", func(t *testing.T) {
 		_, err := c.AppendEdge(fromNodeID, toNodeID, "edgeLabel", prvKeyInvalid)
@@ -310,21 +314,21 @@ func TestSecureTreeAdapterPrependEdge(t *testing.T) {
 	prvKey := "d6eb959e9aec2e6fdc44b5862b269e987b8a4d6f2baca542d8acaa97ee5e74f6"
 	prvKeyInvalid := "ed26531bac1838e519c2c6562ac717b22aac041730f0d753d3ad35b76b5f4924"
 
-	c, err := NewSecureTree(prvKey)
+	c, err := NewSecureTreeCRDT(prvKey)
 	assert.Nil(t, err)
 
 	// Create fromNode under root
 	root, err := c.GetNodeByPath("/")
 	assert.Nil(t, err)
 
-	_, fromNode, err := root.(*AdapterSecureNodeCRDT).CreateMapNode(prvKey)
+	_, fromNode, err := root.(*SecureNodeCRDTImpl).CreateMapNode(prvKey)
 	assert.Nil(t, err)
-	fromNodeID := fromNode.(*AdapterSecureNodeCRDT).nodeCrdt.ID
+	fromNodeID := fromNode.(*SecureNodeCRDTImpl).nodeCrdt.ID
 
 	// Create toNode as detached node
-	_, toNode, err := c.CreateNode("detachedNode", Map, prvKey)
+	_, toNode, err := c.CreateNode("detachedNode", crdt.Map, prvKey)
 	assert.Nil(t, err)
-	toNodeID := toNode.(*AdapterSecureNodeCRDT).nodeCrdt.ID
+	toNodeID := toNode.(*SecureNodeCRDTImpl).nodeCrdt.ID
 
 	t.Run("Reject PrependEdge with invalid key", func(t *testing.T) {
 		_, err := c.PrependEdge(fromNodeID, toNodeID, "edgeLabel", prvKeyInvalid)
@@ -342,30 +346,30 @@ func TestSecureTreeAdapterInsertEdgeLeft(t *testing.T) {
 	prvKey := "d6eb959e9aec2e6fdc44b5862b269e987b8a4d6f2baca542d8acaa97ee5e74f6"
 	prvKeyInvalid := "ed26531bac1838e519c2c6562ac717b22aac041730f0d753d3ad35b76b5f4924"
 
-	c, err := NewSecureTree(prvKey)
+	c, err := NewSecureTreeCRDT(prvKey)
 	assert.Nil(t, err)
 
 	// Create fromNode under root
 	root, err := c.GetNodeByPath("/")
 	assert.Nil(t, err)
 
-	_, fromNode, err := root.(*AdapterSecureNodeCRDT).CreateMapNode(prvKey)
+	_, fromNode, err := root.(*SecureNodeCRDTImpl).CreateMapNode(prvKey)
 	assert.Nil(t, err)
-	fromNodeID := fromNode.(*AdapterSecureNodeCRDT).nodeCrdt.ID
+	fromNodeID := fromNode.(*SecureNodeCRDTImpl).nodeCrdt.ID
 
 	// Create sibling node (first edge)
-	_, siblingNode, err := c.CreateNode("siblingNode", Map, prvKey)
+	_, siblingNode, err := c.CreateNode("siblingNode", crdt.Map, prvKey)
 	assert.Nil(t, err)
-	siblingNodeID := siblingNode.(*AdapterSecureNodeCRDT).nodeCrdt.ID
+	siblingNodeID := siblingNode.(*SecureNodeCRDTImpl).nodeCrdt.ID
 
 	// Add sibling edge first
 	_, err = c.AppendEdge(fromNodeID, siblingNodeID, "edgeLabel", prvKey)
 	assert.Nil(t, err)
 
 	// Create toNode (node we want to insert to the left of sibling)
-	_, toNode, err := c.CreateNode("toNode", Map, prvKey)
+	_, toNode, err := c.CreateNode("toNode", crdt.Map, prvKey)
 	assert.Nil(t, err)
-	toNodeID := toNode.(*AdapterSecureNodeCRDT).nodeCrdt.ID
+	toNodeID := toNode.(*SecureNodeCRDTImpl).nodeCrdt.ID
 
 	t.Run("Reject InsertEdgeLeft with invalid key", func(t *testing.T) {
 		_, err := c.InsertEdgeLeft(fromNodeID, toNodeID, "edgeLabel", siblingNodeID, prvKeyInvalid)
@@ -383,30 +387,30 @@ func TestSecureTreeAdapterInsertEdgeRight(t *testing.T) {
 	prvKey := "d6eb959e9aec2e6fdc44b5862b269e987b8a4d6f2baca542d8acaa97ee5e74f6"
 	prvKeyInvalid := "ed26531bac1838e519c2c6562ac717b22aac041730f0d753d3ad35b76b5f4924"
 
-	c, err := NewSecureTree(prvKey)
+	c, err := NewSecureTreeCRDT(prvKey)
 	assert.Nil(t, err)
 
 	// Create fromNode under root
 	root, err := c.GetNodeByPath("/")
 	assert.Nil(t, err)
 
-	_, fromNode, err := root.(*AdapterSecureNodeCRDT).CreateMapNode(prvKey)
+	_, fromNode, err := root.(*SecureNodeCRDTImpl).CreateMapNode(prvKey)
 	assert.Nil(t, err)
-	fromNodeID := fromNode.(*AdapterSecureNodeCRDT).nodeCrdt.ID
+	fromNodeID := fromNode.(*SecureNodeCRDTImpl).nodeCrdt.ID
 
 	// Create sibling node (first edge)
-	_, siblingNode, err := c.CreateNode("siblingNode", Map, prvKey)
+	_, siblingNode, err := c.CreateNode("siblingNode", crdt.Map, prvKey)
 	assert.Nil(t, err)
-	siblingNodeID := siblingNode.(*AdapterSecureNodeCRDT).nodeCrdt.ID
+	siblingNodeID := siblingNode.(*SecureNodeCRDTImpl).nodeCrdt.ID
 
 	// Add sibling edge first
 	_, err = c.AppendEdge(fromNodeID, siblingNodeID, "edgeLabel", prvKey)
 	assert.Nil(t, err)
 
 	// Create toNode (node we want to insert to the right of sibling)
-	_, toNode, err := c.CreateNode("toNode", Map, prvKey)
+	_, toNode, err := c.CreateNode("toNode", crdt.Map, prvKey)
 	assert.Nil(t, err)
-	toNodeID := toNode.(*AdapterSecureNodeCRDT).nodeCrdt.ID
+	toNodeID := toNode.(*SecureNodeCRDTImpl).nodeCrdt.ID
 
 	t.Run("Reject InsertEdgeRight with invalid key", func(t *testing.T) {
 		_, err := c.InsertEdgeRight(fromNodeID, toNodeID, "edgeLabel", siblingNodeID, prvKeyInvalid)
@@ -424,7 +428,7 @@ func TestSecureTreeAdapterImportJSON(t *testing.T) {
 	prvKey := "d6eb959e9aec2e6fdc44b5862b269e987b8a4d6f2baca542d8acaa97ee5e74f6"
 	prvKeyInvalid := "ed26531bac1838e519c2c6562ac717b22aac041730f0d753d3ad35b76b5f4924"
 
-	c, err := NewSecureTree(prvKey)
+	c, err := NewSecureTreeCRDT(prvKey)
 	assert.Nil(t, err)
 
 	// Example JSON structure
@@ -459,16 +463,16 @@ func TestSecureTreeAdapterImportJSONToMap(t *testing.T) {
 	prvKey := "d6eb959e9aec2e6fdc44b5862b269e987b8a4d6f2baca542d8acaa97ee5e74f6"
 	prvKeyInvalid := "ed26531bac1838e519c2c6562ac717b22aac041730f0d753d3ad35b76b5f4924"
 
-	c, err := NewSecureTree(prvKey)
+	c, err := NewSecureTreeCRDT(prvKey)
 	assert.Nil(t, err)
 
 	// Create parent map node under root
 	root, err := c.GetNodeByPath("/")
 	assert.Nil(t, err)
 
-	_, parentMapNode, err := root.(*AdapterSecureNodeCRDT).CreateMapNode(prvKey)
+	_, parentMapNode, err := root.(*SecureNodeCRDTImpl).CreateMapNode(prvKey)
 	assert.Nil(t, err)
-	parentID := parentMapNode.(*AdapterSecureNodeCRDT).nodeCrdt.ID
+	parentID := parentMapNode.(*SecureNodeCRDTImpl).nodeCrdt.ID
 
 	// Example JSON to import
 	jsonData := []byte(`{
@@ -493,22 +497,22 @@ func TestSecureTreeAdapterImportJSONToArray(t *testing.T) {
 	prvKey := "d6eb959e9aec2e6fdc44b5862b269e987b8a4d6f2baca542d8acaa97ee5e74f6"
 	prvKeyInvalid := "ed26531bac1838e519c2c6562ac717b22aac041730f0d753d3ad35b76b5f4924"
 
-	c, err := NewSecureTree(prvKey)
+	c, err := NewSecureTreeCRDT(prvKey)
 	assert.Nil(t, err)
 
 	// Create parent array node under root
 	root, err := c.GetNodeByPath("/")
 	assert.Nil(t, err)
 
-	_, parentArrayNode, err := root.(*AdapterSecureNodeCRDT).CreateMapNode(prvKey)
+	_, parentArrayNode, err := root.(*SecureNodeCRDTImpl).CreateMapNode(prvKey)
 	assert.Nil(t, err)
 
 	// Now under parentArrayNode, add an array key
-	parentID := parentArrayNode.(*AdapterSecureNodeCRDT).nodeCrdt.ID
+	parentID := parentArrayNode.(*SecureNodeCRDTImpl).nodeCrdt.ID
 
-	_, arrayNode, err := c.CreateNode("arrayKey", Array, prvKey)
+	_, arrayNode, err := c.CreateNode("arrayKey", crdt.Array, prvKey)
 	assert.Nil(t, err)
-	arrayNodeID := arrayNode.(*AdapterSecureNodeCRDT).nodeCrdt.ID
+	arrayNodeID := arrayNode.(*SecureNodeCRDTImpl).nodeCrdt.ID
 
 	// Link the array node under parent map node
 	_, err = c.AppendEdge(parentID, arrayNodeID, "arrayKey", prvKey)
@@ -537,7 +541,7 @@ func TestSecureTreeAdapterImportJSONToArray(t *testing.T) {
 func TestSecureTreeAdapterMerge(t *testing.T) {
 	prvKey := "d6eb959e9aec2e6fdc44b5862b269e987b8a4d6f2baca542d8acaa97ee5e74f6"
 
-	c1, err := NewSecureTree(prvKey)
+	c1, err := NewSecureTreeCRDT(prvKey)
 	assert.Nil(t, err)
 
 	jsonData := []byte(`{
@@ -556,15 +560,15 @@ func TestSecureTreeAdapterMerge(t *testing.T) {
 	valueNode, ok := c2.GetNode(valueNodeID)
 	assert.True(t, ok, "GetNode should return the node")
 	assert.NotNil(t, valueNode, "valueNode should not be nil")
-	oldSignature := valueNode.(*AdapterSecureNodeCRDT).nodeCrdt.Signature
-	valueNode.(*AdapterSecureNodeCRDT).nodeCrdt.Signature = "e713a1bb015fecabb5a084b0fe6d6e7271fca6f79525a634183cfdb175fe69241f4da161779d8e6b761200e1cf93766010a19072fa778f9643363e2cfadd640900" // Invalid signature for testing
+	oldSignature := valueNode.(*SecureNodeCRDTImpl).nodeCrdt.Signature
+	valueNode.(*SecureNodeCRDTImpl).nodeCrdt.Signature = "e713a1bb015fecabb5a084b0fe6d6e7271fca6f79525a634183cfdb175fe69241f4da161779d8e6b761200e1cf93766010a19072fa778f9643363e2cfadd640900" // Invalid signature for testing
 	assert.Nil(t, err, "SetKeyValue should return an error for invalid private key")
 
 	err = c1.Merge(c2, prvKey)
 	assert.NotNil(t, err, "Merge should return an error since c2 has a node with an invalid signature")
 
 	// Restore the original signature for a valid merge
-	valueNode.(*AdapterSecureNodeCRDT).nodeCrdt.Signature = oldSignature
+	valueNode.(*SecureNodeCRDTImpl).nodeCrdt.Signature = oldSignature
 
 	err = c1.Merge(c2, prvKey)
 	assert.Nil(t, err, "Merge should not return an error after restoring the signature")
@@ -577,7 +581,7 @@ func TestSecureTreeAdapterMergeABAC(t *testing.T) {
 	identity2, err := crypto.CreateIdentityFromString(prvKey2)
 	assert.Nil(t, err)
 
-	c1, err := NewSecureTree(prvKey1)
+	c1, err := NewSecureTreeCRDT(prvKey1)
 	assert.Nil(t, err)
 
 	jsonData := []byte(`{
@@ -595,7 +599,7 @@ func TestSecureTreeAdapterMergeABAC(t *testing.T) {
 	_, valueNodeID, err := mapNode.SetKeyValue("newKey", "newValue", prvKey2)
 	assert.Error(t, err, "SetKeyValue should return an error for prvKey2 since identity2 is not allowed to modify the root node")
 
-	c2.ABAC().Allow(identity2.ID(), ActionModify, "root", true)
+	c2.ABAC().Allow(identity2.ID(), abac.ActionModify, "root", true)
 
 	_, valueNodeID, err = mapNode.SetKeyValue("newKey", "newValue", prvKey2)
 	assert.NoError(t, err, "SetKeyValue should not return an error for prvKey2")
@@ -607,7 +611,7 @@ func TestSecureTreeAdapterMergeABAC(t *testing.T) {
 	err = c1.Merge(c2, prvKey1)
 	assert.NotNil(t, err, "Merge should return an error since identity2 is not allowed to modify the root node")
 
-	c1.ABAC().Allow(identity2.ID(), ActionModify, "root", true)
+	c1.ABAC().Allow(identity2.ID(), abac.ActionModify, "root", true)
 
 	err = c1.Merge(c2, prvKey1)
 	assert.Nil(t, err, "Merge should not return an error after restoring the signature")
@@ -635,13 +639,13 @@ func TestSecureTreeAdapterMergeComplexJSONABAC(t *testing.T) {
 	identity2, err := crypto.CreateIdentityFromString(prvKey2)
 	assert.Nil(t, err)
 
-	c1, err := NewSecureTree(prvKey1)
+	c1, err := NewSecureTreeCRDT(prvKey1)
 	assert.Nil(t, err)
 
 	_, err = c1.ImportJSON(json, prvKey1)
 	assert.Nil(t, err, "ImportJSON should not return an error")
 
-	c2, err := NewSecureTree(prvKey2)
+	c2, err := NewSecureTreeCRDT(prvKey2)
 	assert.Nil(t, err)
 	_, err = c2.ImportJSON(json, prvKey2)
 	assert.Nil(t, err, "ImportJSON should not return an error")
@@ -649,7 +653,7 @@ func TestSecureTreeAdapterMergeComplexJSONABAC(t *testing.T) {
 	err = c1.Merge(c2, prvKey1)
 	assert.NotNil(t, err, "Merge should return an error since identity2 is not allowed to modify the root node")
 
-	c1.ABAC().Allow(identity2.ID(), ActionModify, "root", true)
+	c1.ABAC().Allow(identity2.ID(), abac.ActionModify, "root", true)
 
 	err = c1.Merge(c2, prvKey1)
 	assert.Nil(t, err, "Merge should not return an error after restoring the signature")
@@ -673,7 +677,7 @@ func TestSecureTreeAdapterSave(t *testing.T) {
 	  ]
 	}`)
 
-	c1, err := NewSecureTree(prvKey)
+	c1, err := NewSecureTreeCRDT(prvKey)
 	assert.Nil(t, err)
 
 	_, err = c1.ImportJSON(json, prvKey)
@@ -682,23 +686,23 @@ func TestSecureTreeAdapterSave(t *testing.T) {
 	savedData, err := c1.Save()
 	assert.Nil(t, err, "Save should not return an error")
 
-	c2, err := NewSecureTree(prvKey)
+	c2, err := NewSecureTreeCRDT(prvKey)
 	assert.Nil(t, err)
 
 	err = c2.Load(savedData)
 	assert.Nil(t, err, "Load should not return an error")
 
-	adapterC1 := c1.(*AdapterSecureTreeCRDT)
-	adapterC2 := c2.(*AdapterSecureTreeCRDT)
-	assert.Equal(t, adapterC1.treeCrdt.ABACPolicy.identity.ID(), adapterC2.treeCrdt.ABACPolicy.identity.ID(), "ABAC identity should match after save and load")
+	adapterC1 := c1.(*SecureTreeCRDTImpl)
+	adapterC2 := c2.(*SecureTreeCRDTImpl)
+	assert.Equal(t, adapterC1.treeCrdt.ABACPolicy.Identity().ID(), adapterC2.treeCrdt.ABACPolicy.Identity().ID(), "ABAC identity should match after save and load")
 
 	// Try to modify the ABAC owner
 	hackedC2, err := c2.Clone()
 	assert.Nil(t, err, "Clone should not return an error")
-	hackedC2.(*AdapterSecureTreeCRDT).treeCrdt.ABACPolicy.OwnerID = "ff4d4028f7a41edca91c01d17da4c4c3edb18950ac98b465cb918ad5362c5bdc"
+	hackedC2.(*SecureTreeCRDTImpl).treeCrdt.ABACPolicy.OwnerID = "ff4d4028f7a41edca91c01d17da4c4c3edb18950ac98b465cb918ad5362c5bdc"
 	savedData, err = hackedC2.Save()
 	assert.Nil(t, err, "Save should return an error when trying to modify the ABAC owner")
-	c3, err := NewSecureTree(prvKey)
+	c3, err := NewSecureTreeCRDT(prvKey)
 	assert.Nil(t, err, "NewSecureTree should not return an error")
 	err = c3.Load(savedData)
 	assert.NotNil(t, err, "Load should return an error when trying to load a tree with a modified ABAC owner")
@@ -706,11 +710,11 @@ func TestSecureTreeAdapterSave(t *testing.T) {
 	// Try to modify the ABAC rules
 	savedData, err = c2.Save()
 	assert.Nil(t, err, "Save should not return an error")
-	hackedC3, err := NewSecureTree("ff4d4028f7a41edca91c01d17da4c4c3edb18950ac98b465cb918ad5362c5bdc")
+	hackedC3, err := NewSecureTreeCRDT("ff4d4028f7a41edca91c01d17da4c4c3edb18950ac98b465cb918ad5362c5bdc")
 	assert.Nil(t, err, "NewSecureTree should not return an error")
 	err = hackedC3.Load(savedData)
 	assert.Nil(t, err, "Load should not return an error when loading a tree with a different ABAC owner")
-	err = hackedC3.ABAC().Allow("ff4d4028f7a41edca91c01d17da4c4c3edb18950ac98b465cb918ad5362c5bdc", ActionModify, "root", true)
+	err = hackedC3.ABAC().Allow("ff4d4028f7a41edca91c01d17da4c4c3edb18950ac98b465cb918ad5362c5bdc", abac.ActionModify, "root", true)
 	assert.Nil(t, err, "Allow should not return an error when modifying ABAC rules")
 
 	// Try to add map key value
@@ -722,7 +726,7 @@ func TestSecureTreeAdapterSave(t *testing.T) {
 
 type DummyTree struct{}
 
-func (t *DummyTree) isDescendant(root NodeID, target NodeID) bool {
+func (t *DummyTree) IsDescendant(root core.NodeID, target core.NodeID) bool {
 	// Simple implementation → no hierarchy for this test
 	return false
 }
@@ -742,24 +746,24 @@ func TestABACPolicyMerge_LWW(t *testing.T) {
 	tree := &DummyTree{}
 
 	// Create ABACPolicy A
-	policyA := NewABACPolicy(tree, ownerA, identityA)
-	err = policyA.Allow("client1", ActionModify, "node1", false)
+	policyA := abac.NewABACPolicy(tree, ownerA, identityA)
+	err = policyA.Allow("client1", abac.ActionModify, "node1", false)
 	assert.NoError(t, err)
 
 	// Simulate more updates → bump clock for A
 	for i := 0; i < 3; i++ {
-		err = policyA.Allow("client1", ActionRead, NodeID("nodeX"), false)
+		err = policyA.Allow("client1", abac.ActionRead, core.NodeID("nodeX"), false)
 		assert.NoError(t, err)
 	}
 
 	// Create ABACPolicy B
-	policyB := NewABACPolicy(tree, ownerB, identityB)
-	err = policyB.Allow("client2", ActionModify, "node2", true)
+	policyB := abac.NewABACPolicy(tree, ownerB, identityB)
+	err = policyB.Allow("client2", abac.ActionModify, "node2", true)
 	assert.NoError(t, err)
 
 	// B will be "newer" → simulate a higher clock
 	for i := 0; i < 5; i++ {
-		err = policyB.Allow("client2", ActionRead, NodeID("nodeY"), true)
+		err = policyB.Allow("client2", abac.ActionRead, core.NodeID("nodeY"), true)
 		assert.NoError(t, err)
 	}
 
@@ -784,11 +788,11 @@ func TestABACPolicyMerge_LWW(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Check that an allowed rule from B is now present
-	allowed := policyA.IsAllowed("client2", ActionModify, "node2")
+	allowed := policyA.IsAllowed("client2", abac.ActionModify, "node2")
 	assert.True(t, allowed, "Expected client2 to be allowed after merge")
 
 	// Check that old client1 rule may have been replaced
-	allowedClient1 := policyA.IsAllowed("client1", ActionModify, "node1")
+	allowedClient1 := policyA.IsAllowed("client1", abac.ActionModify, "node1")
 	// Depending on clock dominance, this may be true or false:
 	// In strict LWW → B wins → client1's rules gone
 	assert.False(t, allowedClient1, "Expected client1 to lose after merge")
@@ -819,7 +823,7 @@ func TestSecureTreeSetLiteralt(t *testing.T) {
 		]
 	}`)
 
-	c, err := NewSecureTree(prvKey)
+	c, err := NewSecureTreeCRDT(prvKey)
 	assert.Nil(t, err, "Failed to create new secure tree")
 
 	_, err = c.ImportJSON(originalJSON, prvKey)

@@ -6,15 +6,16 @@ import (
 	"sort"
 
 	"github.com/eislab-cps/synctree/internal/crypto"
+	"github.com/eislab-cps/synctree/pkg/abac"
+	"github.com/eislab-cps/synctree/pkg/core"
+	"github.com/eislab-cps/synctree/pkg/lseq"
 	"github.com/eislab-cps/synctree/pkg/random"
+	"github.com/eislab-cps/synctree/pkg/vectorclock"
 	log "github.com/sirupsen/logrus"
 )
 
-type NodeID string
-type NodeType int
-
 const (
-	Root NodeType = iota
+	Root core.NodeType = iota
 	Array
 	Map
 	Literal
@@ -22,47 +23,47 @@ const (
 
 type NodeCRDT struct {
 	tree         *TreeCRDT
-	ID           NodeID      `json:"id"`
-	ParentID     NodeID      `json:"parentid"`
-	Edges        []*EdgeCRDT `json:"edges"`
-	Clock        VectorClock `json:"clock"`
-	Owner        ClientID    `json:"owner"`
-	IsRoot       bool        `json:"isroot"`
-	IsMap        bool        `json:"ismap"`
-	IsArray      bool        `json:"isarray"`
-	IsPromoted   bool        `json:"ispromoted"`
-	IsLiteral    bool        `json:"isliteral"`
-	LiteralValue interface{} `json:"literalValue"`
-	Nonce       string      `json:"nonce"`
-	Signature    string      `json:"signature"`
-	IsDeleted    bool        `json:"deleted"`
+	ID           core.NodeID             `json:"id"`
+	ParentID     core.NodeID             `json:"parentid"`
+	Edges        []*EdgeCRDT             `json:"edges"`
+	Clock        vectorclock.VectorClock `json:"clock"`
+	Owner        core.ClientID           `json:"owner"`
+	IsRoot       bool                    `json:"isroot"`
+	IsMap        bool                    `json:"ismap"`
+	IsArray      bool                    `json:"isarray"`
+	IsPromoted   bool                    `json:"ispromoted"`
+	IsLiteral    bool                    `json:"isliteral"`
+	LiteralValue interface{}             `json:"literalValue"`
+	Nonce        string                  `json:"nonce"`
+	Signature    string                  `json:"signature"`
+	IsDeleted    bool                    `json:"deleted"`
 }
 
 type EdgeCRDT struct {
-	From         NodeID `json:"from"`
-	To           NodeID `json:"to"`
-	Label        string `json:"label"`
-	LSEQPosition []int  `json:"lseqposition"`
+	From         core.NodeID `json:"from"`
+	To           core.NodeID `json:"to"`
+	Label        string      `json:"label"`
+	LSEQPosition []int       `json:"lseqposition"`
 }
 
 type TreeCRDT struct {
-	Root        *NodeCRDT            `json:"root"`
-	Nodes       map[NodeID]*NodeCRDT `json:"nodes"`
-	ABACPolicy  *ABACPolicy          `json:"abac"`
-	Secure      bool                 `json:"secure"`
+	Root        *NodeCRDT                 `json:"root"`
+	Nodes       map[core.NodeID]*NodeCRDT `json:"nodes"`
+	ABACPolicy  *abac.ABACPolicy          `json:"abac"`
+	Secure      bool                      `json:"secure"`
 	subscribers []subscriber
 }
 
-func newTreeCRDT() *TreeCRDT {
+func NewTreeCRDT() *TreeCRDT {
 	rootID := "root"
 	root := &NodeCRDT{
-		ID:     NodeID(rootID),
+		ID:     core.NodeID(rootID),
 		Edges:  make([]*EdgeCRDT, 0),
 		IsRoot: true,
 	}
 	c := &TreeCRDT{
 		Root:  root,
-		Nodes: make(map[NodeID]*NodeCRDT),
+		Nodes: make(map[core.NodeID]*NodeCRDT),
 	}
 	c.Nodes[c.Root.ID] = c.Root
 	root.tree = c
@@ -72,7 +73,7 @@ func newTreeCRDT() *TreeCRDT {
 	return c
 }
 
-func (c *TreeCRDT) CreateAttachedNode(name string, nodeType NodeType, parentID NodeID, clientID ClientID) *NodeCRDT {
+func (c *TreeCRDT) CreateAttachedNode(name string, nodeType core.NodeType, parentID core.NodeID, clientID core.ClientID) *NodeCRDT {
 	id := generateRandomNodeID(name)
 	node := c.getOrCreateNode(id, nodeType, clientID, 1)
 	c.AddEdge(parentID, id, "", clientID)
@@ -83,7 +84,7 @@ func (c *TreeCRDT) CreateAttachedNode(name string, nodeType NodeType, parentID N
 	return node
 }
 
-func (c *TreeCRDT) CreateNode(name string, nodeType NodeType, clientID ClientID) *NodeCRDT {
+func (c *TreeCRDT) CreateNode(name string, nodeType core.NodeType, clientID core.ClientID) *NodeCRDT {
 	id := generateRandomNodeID(name)
 	node := c.getOrCreateNode(id, nodeType, clientID, 1)
 	setNodeTypeFlags(node, nodeType)
@@ -92,7 +93,7 @@ func (c *TreeCRDT) CreateNode(name string, nodeType NodeType, clientID ClientID)
 	return node
 }
 
-func newNodeFromID(id NodeID, nodeType NodeType, tree *TreeCRDT) *NodeCRDT {
+func newNodeFromID(id core.NodeID, nodeType core.NodeType, tree *TreeCRDT) *NodeCRDT {
 	node := &NodeCRDT{
 		ID:    id,
 		Edges: make([]*EdgeCRDT, 0),
@@ -103,18 +104,18 @@ func newNodeFromID(id NodeID, nodeType NodeType, tree *TreeCRDT) *NodeCRDT {
 	return node
 }
 
-func (c *TreeCRDT) getOrCreateNode(id NodeID, nodeType NodeType, clientID ClientID, version int) *NodeCRDT {
+func (c *TreeCRDT) getOrCreateNode(id core.NodeID, nodeType core.NodeType, clientID core.ClientID, version int) *NodeCRDT {
 	if _, ok := c.Nodes[id]; !ok {
 		node := newNodeFromID(id, nodeType, c)
 		c.Nodes[id] = node
-		node.Clock = make(VectorClock)
+		node.Clock = make(vectorclock.VectorClock)
 		node.Clock[clientID] = version
 		node.Owner = clientID
 	}
 	return c.Nodes[id]
 }
 
-func (c *TreeCRDT) GetNode(id NodeID) (*NodeCRDT, bool) {
+func (c *TreeCRDT) GetNode(id core.NodeID) (*NodeCRDT, bool) {
 	node, ok := c.Nodes[id]
 	if !ok {
 		return nil, false
@@ -122,14 +123,18 @@ func (c *TreeCRDT) GetNode(id NodeID) (*NodeCRDT, bool) {
 	return node, true
 }
 
-func generateRandomNodeID(label string) NodeID {
+func generateRandomNodeID(label string) core.NodeID {
 	id := random.GenerateRandomID()
 	id = label + "-" + id
-	return NodeID(id)
+	return core.NodeID(id)
+}
+
+func (n *NodeCRDT) Tree() *TreeCRDT {
+	return n.tree
 }
 
 // This functions only appends a new node to the tree, no need for conflict resolution
-func (n *NodeCRDT) CreateMapNode(clientID ClientID) (*NodeCRDT, error) {
+func (n *NodeCRDT) CreateMapNode(clientID core.ClientID) (*NodeCRDT, error) {
 	mapNode := n.tree.CreateNode("map", Map, clientID)
 	mapNode.ParentID = n.ID
 	if err := n.tree.AddEdge(n.ID, mapNode.ID, "", clientID); err != nil {
@@ -160,9 +165,11 @@ func (n *NodeCRDT) GetNodeForKey(key string) (*NodeCRDT, bool, error) {
 	return nil, false, nil
 }
 
-func (n *NodeCRDT) SetKeyValue(key string, value interface{}, clientID ClientID) (NodeID, error) {
+func (n *NodeCRDT) SetKeyValue(key string, value interface{}, clientID core.ClientID) (Mutation, core.NodeID, error) {
+	mut := Mutation{}
+
 	if !n.IsMap {
-		return "", fmt.Errorf("SetKeyValue: node %s is not a map node", n.ID)
+		return mut, "", fmt.Errorf("SetKeyValue: node %s is not a map node", n.ID)
 	}
 
 	// Check if key already exists
@@ -171,7 +178,7 @@ func (n *NodeCRDT) SetKeyValue(key string, value interface{}, clientID ClientID)
 			valueNodeID := edge.To
 			valueNode, exists := n.tree.Nodes[valueNodeID]
 			if !exists {
-				return "", fmt.Errorf("SetKeyValue: missing node %s", valueNodeID)
+				return mut, "", fmt.Errorf("SetKeyValue: missing node %s", valueNodeID)
 			}
 			maxVersion := 0
 			for _, v := range valueNode.Clock {
@@ -189,11 +196,11 @@ func (n *NodeCRDT) SetKeyValue(key string, value interface{}, clientID ClientID)
 					"ClientID":       clientID,
 					"Error":          err,
 				}).Error("SetLiteral failed")
+				return mut, "", fmt.Errorf("SetKeyValue: failed to set value for key %s: %w", key, err)
 			}
 
 			valueNode.ParentID = n.ID // Ensure parent link is set
-
-			return valueNodeID, err
+			return mut, valueNodeID, nil
 		}
 	}
 
@@ -201,21 +208,22 @@ func (n *NodeCRDT) SetKeyValue(key string, value interface{}, clientID ClientID)
 	valueNodeID := generateRandomNodeID("val")
 	valueNode := n.tree.getOrCreateNode(valueNodeID, Literal, clientID, 1)
 	// setLiteralWithVersion will notify subscribers, when the values is updated
-	if err := valueNode.setLiteralWithVersion(value, clientID, 1); err != nil {
-		return "", err
+	err := valueNode.setLiteralWithVersion(value, clientID, 1)
+	if err != nil {
+		return mut, "", err
 	}
 
 	// Link to map node with key label
 	if err := n.tree.AddEdge(n.ID, valueNodeID, key, clientID); err != nil {
-		return "", err
+		return mut, "", err
 	}
 
 	n.tree.notifySubscribers(valueNodeID, EventAdded)
 
-	return valueNodeID, nil
+	return mut, valueNodeID, nil
 }
 
-func (n *NodeCRDT) RemoveKeyValue(key string, clientID ClientID) error {
+func (n *NodeCRDT) RemoveKeyValue(key string, clientID core.ClientID) error {
 	if !n.IsMap {
 		return fmt.Errorf("RemoveKeyValue: node %s is not a map node", n.ID)
 	}
@@ -230,7 +238,7 @@ func (n *NodeCRDT) RemoveKeyValue(key string, clientID ClientID) error {
 	return fmt.Errorf("RemoveKeyValue: key %s not found", key)
 }
 
-func (c *TreeCRDT) addEdgeWithVersion(from, to NodeID, label string, clientID ClientID, newVersion int) error {
+func (c *TreeCRDT) addEdgeWithVersion(from, to core.NodeID, label string, clientID core.ClientID, newVersion int) error {
 	fromNode, ok := c.Nodes[from]
 	if !ok {
 		return errors.New("Cannot add edge, from node not found: " + string(from))
@@ -242,13 +250,13 @@ func (c *TreeCRDT) addEdgeWithVersion(from, to NodeID, label string, clientID Cl
 	}
 
 	// Prepare the new clock
-	newClock := copyClock(fromNode.Clock)
+	newClock := vectorclock.CopyClock(fromNode.Clock)
 	newClock[clientID] = newVersion
 
 	// Resolve clock conflict
-	winningClock, winningOwner := resolveConflict(fromNode.Clock, newClock, fromNode.Owner, clientID, false)
+	winningClock, winningOwner := vectorclock.ResolveConflict(fromNode.Clock, newClock, fromNode.Owner, clientID, false)
 
-	if clocksEqual(winningClock, newClock) && (clientID == winningOwner) {
+	if vectorclock.ClocksEqual(winningClock, newClock) && (clientID == winningOwner) {
 		edge := &EdgeCRDT{From: from, To: to, Label: label, LSEQPosition: make([]int, 0)}
 		fromNode.Edges = append(fromNode.Edges, edge)
 		fromNode.Clock = newClock
@@ -265,7 +273,7 @@ func (c *TreeCRDT) addEdgeWithVersion(from, to NodeID, label string, clientID Cl
 	return nil
 }
 
-func (c *TreeCRDT) AddEdge(from, to NodeID, label string, clientID ClientID) error {
+func (c *TreeCRDT) AddEdge(from, to core.NodeID, label string, clientID core.ClientID) error {
 	if c.validAttachment(from, to) != nil {
 		return fmt.Errorf("Adding edge would create a cycle: %s -> %s or multiple parents", from, to)
 	}
@@ -281,11 +289,11 @@ func (c *TreeCRDT) AddEdge(from, to NodeID, label string, clientID ClientID) err
 	return c.addEdgeWithVersion(from, to, label, clientID, newVersion)
 }
 
-func (c *TreeCRDT) AppendEdge(from, to NodeID, label string, clientID ClientID) error {
+func (c *TreeCRDT) AppendEdge(from, to core.NodeID, label string, clientID core.ClientID) error {
 	return c.appendEdge(from, to, label, clientID, false)
 }
 
-func (c *TreeCRDT) appendEdge(from, to NodeID, label string, clientID ClientID, ignoreConflicts bool) error {
+func (c *TreeCRDT) appendEdge(from, to core.NodeID, label string, clientID core.ClientID, ignoreConflicts bool) error {
 	if c.validAttachment(from, to) != nil {
 		return fmt.Errorf("Adding edge would create a cycle: %s -> %s or multiple parents", from, to)
 	}
@@ -295,7 +303,7 @@ func (c *TreeCRDT) appendEdge(from, to NodeID, label string, clientID ClientID, 
 		return fmt.Errorf("AppendEdge: from parent node %s not found", from)
 	}
 
-	var lastSibling NodeID
+	var lastSibling core.NodeID
 	if len(fromNode.Edges) > 0 {
 		// Use the last edge as anchor for right-side insert
 		last := fromNode.Edges[len(fromNode.Edges)-1]
@@ -309,7 +317,7 @@ func (c *TreeCRDT) appendEdge(from, to NodeID, label string, clientID ClientID, 
 	return c.insertEdgeWithVersion(from, to, label, lastSibling, false, clientID, newVersion)
 }
 
-func (c *TreeCRDT) PrependEdge(from, to NodeID, label string, clientID ClientID) error {
+func (c *TreeCRDT) PrependEdge(from, to core.NodeID, label string, clientID core.ClientID) error {
 	if c.validAttachment(from, to) != nil {
 		return fmt.Errorf("Adding edge would create a cycle: %s -> %s or multiple parents", from, to)
 	}
@@ -319,7 +327,7 @@ func (c *TreeCRDT) PrependEdge(from, to NodeID, label string, clientID ClientID)
 		return fmt.Errorf("PrependEdge: parent node %s not found", from)
 	}
 
-	var firstSibling NodeID
+	var firstSibling core.NodeID
 	if len(node.Edges) > 0 {
 		// Use the first edge as anchor for left-side insert
 		first := node.Edges[0]
@@ -333,7 +341,7 @@ func (c *TreeCRDT) PrependEdge(from, to NodeID, label string, clientID ClientID)
 	return c.insertEdgeWithVersion(from, to, label, firstSibling, true /* left */, clientID, newVersion)
 }
 
-func (c *TreeCRDT) InsertEdgeLeft(from, to NodeID, label string, sibling NodeID, clientID ClientID) error {
+func (c *TreeCRDT) InsertEdgeLeft(from, to core.NodeID, label string, sibling core.NodeID, clientID core.ClientID) error {
 	if c.validAttachment(from, to) != nil {
 		return fmt.Errorf("Adding edge would create a cycle: %s -> %s or multiple parents", from, to)
 	}
@@ -348,7 +356,7 @@ func (c *TreeCRDT) InsertEdgeLeft(from, to NodeID, label string, sibling NodeID,
 	return c.insertEdgeWithVersion(from, to, label, sibling, true, clientID, newVersion)
 }
 
-func (c *TreeCRDT) InsertEdgeRight(from, to NodeID, label string, sibling NodeID, clientID ClientID) error {
+func (c *TreeCRDT) InsertEdgeRight(from, to core.NodeID, label string, sibling core.NodeID, clientID core.ClientID) error {
 	if c.validAttachment(from, to) != nil {
 		return fmt.Errorf("Adding edge would create a cycle: %s -> %s or multiple parents", from, to)
 	}
@@ -363,13 +371,13 @@ func (c *TreeCRDT) InsertEdgeRight(from, to NodeID, label string, sibling NodeID
 	return c.insertEdgeWithVersion(from, to, label, sibling, false, clientID, newVersion)
 }
 
-func (c *TreeCRDT) insertEdgeWithVersion(from, to NodeID, label string, sibling NodeID, left bool, clientID ClientID, newVersion int) error {
+func (c *TreeCRDT) insertEdgeWithVersion(from, to core.NodeID, label string, sibling core.NodeID, left bool, clientID core.ClientID, newVersion int) error {
 	node, ok := c.Nodes[from]
 	if !ok {
 		return fmt.Errorf("insertWithVersion: parent node %s not found", from)
 	}
 
-	newClock := copyClock(node.Clock)
+	newClock := vectorclock.CopyClock(node.Clock)
 	newClock[clientID] = newVersion
 
 	// Sort edges for position lookup
@@ -377,13 +385,13 @@ func (c *TreeCRDT) insertEdgeWithVersion(from, to NodeID, label string, sibling 
 	copy(sorted, node.Edges)
 	sortEdgesByLSEQ(sorted)
 
-	var leftPos, rightPos Position
+	var leftPos, rightPos lseq.Position
 	found := false
 
 	if sibling == "" || len(sorted) == 0 {
 		// Insert at beginning
 		leftPos = []int{}
-		rightPos = []int{Base}
+		rightPos = []int{lseq.Base}
 	} else {
 		for i, e := range sorted {
 			if e.To == sibling {
@@ -402,7 +410,7 @@ func (c *TreeCRDT) insertEdgeWithVersion(from, to NodeID, label string, sibling 
 					if i+1 < len(sorted) {
 						rightPos = sorted[i+1].LSEQPosition
 					} else {
-						rightPos = []int{Base}
+						rightPos = []int{lseq.Base}
 					}
 				}
 				break
@@ -410,11 +418,11 @@ func (c *TreeCRDT) insertEdgeWithVersion(from, to NodeID, label string, sibling 
 		}
 		if !found {
 			leftPos = []int{}
-			rightPos = []int{Base}
+			rightPos = []int{lseq.Base}
 		}
 	}
 
-	newPos := generatePositionBetweenLSEQ(leftPos, rightPos)
+	newPos := lseq.GeneratePositionBetweenLSEQ(leftPos, rightPos)
 
 	edge := &EdgeCRDT{
 		From:         from,
@@ -448,7 +456,7 @@ func (c *TreeCRDT) insertEdgeWithVersion(from, to NodeID, label string, sibling 
 	return nil
 }
 
-func (c *TreeCRDT) GetSibling(parentNodeID NodeID, index int) (*NodeCRDT, error) {
+func (c *TreeCRDT) GetSibling(parentNodeID core.NodeID, index int) (*NodeCRDT, error) {
 	node, ok := c.Nodes[parentNodeID]
 	if !ok {
 		return nil, fmt.Errorf("Cannot find node: %s", parentNodeID)
@@ -476,7 +484,7 @@ func (c *TreeCRDT) GetSibling(parentNodeID NodeID, index int) (*NodeCRDT, error)
 	return sibling, nil
 }
 
-func (c *TreeCRDT) removeEdgeWithVersion(from, to NodeID, clientID ClientID, newVersion int, ignoreConflicts bool) error {
+func (c *TreeCRDT) removeEdgeWithVersion(from, to core.NodeID, clientID core.ClientID, newVersion int, ignoreConflicts bool) error {
 	fromNode, ok := c.Nodes[from]
 	if !ok {
 		return fmt.Errorf("Cannot remove edge, from node %s not found", from)
@@ -487,13 +495,13 @@ func (c *TreeCRDT) removeEdgeWithVersion(from, to NodeID, clientID ClientID, new
 	}
 
 	// Prepare the new clock
-	newClock := copyClock(fromNode.Clock)
+	newClock := vectorclock.CopyClock(fromNode.Clock)
 	newClock[clientID] = newVersion
 
 	// Resolve clock conflict
-	winningClock, _ := resolveConflict(fromNode.Clock, newClock, fromNode.Owner, clientID, false)
+	winningClock, _ := vectorclock.ResolveConflict(fromNode.Clock, newClock, fromNode.Owner, clientID, false)
 
-	if clocksEqual(winningClock, newClock) || ignoreConflicts {
+	if vectorclock.ClocksEqual(winningClock, newClock) || ignoreConflicts {
 		// New clock wins -> allow edge removal
 		newEdges := []*EdgeCRDT{}
 		for _, edge := range fromNode.Edges {
@@ -526,7 +534,7 @@ func (c *TreeCRDT) removeEdgeWithVersion(from, to NodeID, clientID ClientID, new
 	return nil
 }
 
-func (c *TreeCRDT) RemoveEdge(from, to NodeID, clientID ClientID) error {
+func (c *TreeCRDT) RemoveEdge(from, to core.NodeID, clientID core.ClientID) error {
 	fromNode, ok := c.Nodes[from]
 	if !ok {
 		return fmt.Errorf("Cannot remove edge, from node %s not found", from)
@@ -544,63 +552,7 @@ func (n *NodeCRDT) GetLiteral() (interface{}, error) {
 	return n.LiteralValue, nil
 }
 
-func (n *NodeCRDT) SetLiteral(value interface{}, clientID ClientID) error {
-	// Find max version for this client
-	maxVersion := 0
-	for _, v := range n.Clock {
-		if v > maxVersion {
-			maxVersion = v
-		}
-	}
-	version := maxVersion + 1
-
-	return n.setLiteralWithVersion(value, clientID, version)
-}
-
-func (n *NodeCRDT) setLiteralWithVersion(value interface{}, clientID ClientID, version int) error {
-	value = normalizeNumber(value) // If value is a number, normalize it to float64 since JS uses float64 for all numbers
-	currentClock := n.Clock
-	newClock := make(VectorClock)
-	newClock[clientID] = version
-
-	winningClock, winningOwner := resolveConflict(currentClock, newClock, n.Owner, clientID, false)
-
-	if clocksEqual(winningClock, newClock) && winningOwner == clientID {
-		n.IsLiteral = true
-		n.LiteralValue = value
-		n.Clock = newClock
-		n.Owner = clientID
-		log.WithFields(log.Fields{
-			"NodeID":       n.ID,
-			"NodeClock":    currentClock,
-			"NewClock":     newClock,
-			"WinningClock": winningClock,
-			"WinningOwner": winningOwner,
-			"ClientID":     clientID,
-			"LiteralValue": value}).Debug("Set literal value")
-
-		// XXX: We cannot notify subscribers if node does not have a parent, this will happen when using CreateNode
-		if n.ParentID != "" {
-			n.tree.notifySubscribers(n.ID, EventUpdated)
-		} else {
-			//		panic("SetLiteral called on a node without parent, this should not happen")
-		}
-	} else {
-		log.WithFields(log.Fields{"NodeID": n.ID,
-			"AttemptedLiteralValue": value,
-			"ClientID":              clientID,
-			"NodeClock":             currentClock,
-			"NewClock":              newClock,
-			"WinningClock":          winningClock,
-			"ExistingOwner":         n.Owner,
-			"WinningOwner":          winningOwner}).Debug("Literal set ignored due to conflict")
-		return fmt.Errorf("Cannot set literal value, conflict detected: %s", n.ID)
-	}
-
-	return nil
-}
-
-func (n *NodeCRDT) MarkDeleted(clientID ClientID) error {
+func (n *NodeCRDT) MarkDeleted(clientID core.ClientID) error {
 	// Find max version for this client
 	maxVersion := 0
 	for _, v := range n.Clock {
@@ -613,14 +565,14 @@ func (n *NodeCRDT) MarkDeleted(clientID ClientID) error {
 	return n.markDeletedWithVersion(clientID, version)
 }
 
-func (n *NodeCRDT) markDeletedWithVersion(clientID ClientID, version int) error {
+func (n *NodeCRDT) markDeletedWithVersion(clientID core.ClientID, version int) error {
 	currentClock := n.Clock
-	newClock := make(VectorClock)
+	newClock := make(vectorclock.VectorClock)
 	newClock[clientID] = version
 
-	winningClock, winningOwner := resolveConflict(currentClock, newClock, n.Owner, clientID, false)
+	winningClock, winningOwner := vectorclock.ResolveConflict(currentClock, newClock, n.Owner, clientID, false)
 
-	if clocksEqual(winningClock, newClock) && winningOwner == clientID {
+	if vectorclock.ClocksEqual(winningClock, newClock) && winningOwner == clientID {
 		n.IsLiteral = true
 		n.Clock = newClock
 		n.Owner = clientID
@@ -664,7 +616,7 @@ func (n *NodeCRDT) markDeletedWithVersion(clientID ClientID, version int) error 
 //
 // This helps keep the CRDT tree compact without risking consistency.
 func (c *TreeCRDT) Tidy() {
-	referenced := make(map[NodeID]bool)
+	referenced := make(map[core.NodeID]bool)
 
 	// Mark all referenced nodes (target of edges)
 	for _, node := range c.Nodes {
@@ -783,7 +735,7 @@ func (c *TreeCRDT) SecureMerge(c2 *TreeCRDT, prvKey string) error {
 
 func (c *TreeCRDT) merge(c2 *TreeCRDT, secure bool, prvKey string) error {
 	force := false
-	promotions := make(map[NodeID]NodeID) // fromNodeID -> arrayNodeID
+	promotions := make(map[core.NodeID]core.NodeID) // fromNodeID -> arrayNodeID
 
 	for id, remote := range c2.Nodes {
 		local, exists := c.Nodes[id]
@@ -803,7 +755,7 @@ func (c *TreeCRDT) merge(c2 *TreeCRDT, secure bool, prvKey string) error {
 			cloned.IsArray = remote.IsArray
 			cloned.IsPromoted = remote.IsPromoted
 			cloned.LiteralValue = remote.LiteralValue
-			cloned.Clock = copyClock(remote.Clock)
+			cloned.Clock = vectorclock.CopyClock(remote.Clock)
 			cloned.Owner = remote.Owner
 			cloned.IsDeleted = remote.IsDeleted
 			cloned.IsRoot = remote.IsRoot
@@ -813,7 +765,7 @@ func (c *TreeCRDT) merge(c2 *TreeCRDT, secure bool, prvKey string) error {
 			local = cloned
 		}
 
-		mergedClock := mergeClocks(local.Clock, remote.Clock)
+		mergedClock := vectorclock.MergeClocks(local.Clock, remote.Clock)
 		mergedOwner := lowestClientID(local.Owner, remote.Owner)
 
 		if remote.IsLiteral {
@@ -913,7 +865,7 @@ func (c *TreeCRDT) merge(c2 *TreeCRDT, secure bool, prvKey string) error {
 				inserted := false
 				for i, edge := range existingChildren {
 					if re.To < edge.To {
-						var leftSiblingID NodeID
+						var leftSiblingID core.NodeID
 						if i > 0 {
 							leftSiblingID = existingChildren[i-1].To
 							_ = c.InsertEdgeRight(arrayNodeID, re.To, re.Label, leftSiblingID, remote.Owner)
@@ -946,7 +898,7 @@ func (c *TreeCRDT) merge(c2 *TreeCRDT, secure bool, prvKey string) error {
 				remoteParent := c2.Nodes[re.From]
 				sortEdgesByLSEQ(remoteParent.Edges)
 
-				var siblingID NodeID
+				var siblingID core.NodeID
 				var sibling *NodeCRDT = nil
 
 				for i, edge := range remoteParent.Edges {
@@ -1042,7 +994,7 @@ func (c *TreeCRDT) merge(c2 *TreeCRDT, secure bool, prvKey string) error {
 	return nil
 }
 
-func (c *TreeCRDT) cloneNodeFromRemote(c2 *TreeCRDT, id NodeID) {
+func (c *TreeCRDT) cloneNodeFromRemote(c2 *TreeCRDT, id core.NodeID) {
 	remote := c2.Nodes[id]
 	nodeType := Literal
 	if remote.IsArray {
@@ -1056,7 +1008,7 @@ func (c *TreeCRDT) cloneNodeFromRemote(c2 *TreeCRDT, id NodeID) {
 	cloned.IsArray = remote.IsArray
 	cloned.IsPromoted = remote.IsPromoted
 	cloned.LiteralValue = remote.LiteralValue
-	cloned.Clock = copyClock(remote.Clock)
+	cloned.Clock = vectorclock.CopyClock(remote.Clock)
 	cloned.Owner = remote.Owner
 	cloned.IsDeleted = remote.IsDeleted
 	cloned.IsRoot = remote.IsRoot
@@ -1066,7 +1018,7 @@ func (c *TreeCRDT) cloneNodeFromRemote(c2 *TreeCRDT, id NodeID) {
 	c.Nodes[id] = cloned
 }
 
-func (c *TreeCRDT) edgeExists(node *NodeCRDT, to NodeID) bool {
+func (c *TreeCRDT) edgeExists(node *NodeCRDT, to core.NodeID) bool {
 	for _, e := range node.Edges {
 		if e.To == to {
 			return true
@@ -1085,7 +1037,7 @@ func cloneNodeWithoutEdges(n *NodeCRDT, crdt *TreeCRDT) *NodeCRDT {
 	cloned := newNodeFromID(n.ID, nodeType, crdt)
 	cloned.IsLiteral = n.IsLiteral
 	cloned.LiteralValue = n.LiteralValue
-	cloned.Clock = copyClock(n.Clock)
+	cloned.Clock = vectorclock.CopyClock(n.Clock)
 	cloned.Owner = n.Owner
 	return cloned
 }
@@ -1098,15 +1050,15 @@ func (c *TreeCRDT) normalize() {
 	}
 }
 
-func (c *TreeCRDT) validAttachment(from, to NodeID) error {
+func (c *TreeCRDT) validAttachment(from, to core.NodeID) error {
 	if from == to {
 		return fmt.Errorf("cannot attach node %s to itself", from)
 	}
 
 	// 1. Check for cycle
-	visited := make(map[NodeID]bool)
-	var dfs func(NodeID) bool
-	dfs = func(id NodeID) bool {
+	visited := make(map[core.NodeID]bool)
+	var dfs func(core.NodeID) bool
+	dfs = func(id core.NodeID) bool {
 		if id == from {
 			return true
 		}
@@ -1140,8 +1092,8 @@ func (c *TreeCRDT) ValidateTree() error {
 		return fmt.Errorf("Tree must have a root node")
 	}
 
-	parentMap := make(map[NodeID]NodeID)
-	visited := make(map[NodeID]bool)
+	parentMap := make(map[core.NodeID]core.NodeID)
+	visited := make(map[core.NodeID]bool)
 
 	// Ensure exactly one root node
 	rootCount := 0
@@ -1183,8 +1135,8 @@ func (c *TreeCRDT) ValidateTree() error {
 		return nil
 	}
 
-	var dfs func(current NodeID, ancestors map[NodeID]bool) error
-	dfs = func(current NodeID, ancestors map[NodeID]bool) error {
+	var dfs func(current core.NodeID, ancestors map[core.NodeID]bool) error
+	dfs = func(current core.NodeID, ancestors map[core.NodeID]bool) error {
 		if ancestors[current] {
 			log.WithField("NodeID", current).Debug("Cycle detected")
 			return fmt.Errorf("Cycle detected at node %s", current)
@@ -1246,7 +1198,7 @@ func (c *TreeCRDT) ValidateTree() error {
 	}
 
 	// Start DFS from declared root node
-	if err := dfs(c.Root.ID, make(map[NodeID]bool)); err != nil {
+	if err := dfs(c.Root.ID, make(map[core.NodeID]bool)); err != nil {
 		return err
 	}
 
@@ -1282,7 +1234,7 @@ func (c *TreeCRDT) VerifyTree() error {
 		}
 
 		// 2.2 Check ABACPolicy for ActionModify
-		if !c.ABACPolicy.IsAllowed(recoveredID, ActionModify, id) {
+		if !c.ABACPolicy.IsAllowed(recoveredID, abac.ActionModify, id) {
 			return fmt.Errorf("VerifyTree: ABAC violation: client %s is not allowed to modify node %s", recoveredID, id)
 		}
 	}
@@ -1298,27 +1250,36 @@ func (c *TreeCRDT) VerifyTree() error {
 	return nil
 }
 
-func (t *TreeCRDT) isDescendant(root NodeID, target NodeID) bool {
-	if root == target {
-		return true
+// type Mutation struct {
+// 	NodeID   core.NodeID   `json:"nodeid"`
+// 	Op       Operation     `json:"op"`
+// 	Key      string        `json:"key,omitempty"`
+// 	Value    interface{}   `json:"value,omitempty"`
+// 	ClientID core.ClientID `json:"clientid"`
+// 	Version  int           `json:"version"`
+// }
+
+func (c *TreeCRDT) ApplyMutation(mut Mutation) error {
+	switch mut.Op {
+	case OPSetLiteral:
+		n := c.Nodes[mut.NodeID]
+		if n == nil {
+			log.WithFields(log.Fields{
+				"NodeID":   mut.NodeID,
+				"ClientID": mut.ClientID,
+			}).Error("ApplyMutation: node not found for OPSetLiteral")
+			return fmt.Errorf("ApplyMutation: node %s not found for OPSetLiteral", mut.NodeID)
+		}
+		err := n.applySetLiteralMutations(mut)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"NodeID":   mut.NodeID,
+				"ClientID": mut.ClientID,
+				"Error":    err,
+			}).Error("ApplyMutation: failed to apply OPSetLiteral mutation")
+			return fmt.Errorf("ApplyMutation: failed to apply OPSetLiteral mutation: %w", err)
+		}
 	}
-	visited := make(map[NodeID]bool)
-	var dfs func(NodeID) bool
-	dfs = func(n NodeID) bool {
-		if visited[n] {
-			return false
-		}
-		visited[n] = true
-		node, ok := t.Nodes[n]
-		if !ok {
-			return false
-		}
-		for _, edge := range node.Edges {
-			if edge.To == target || dfs(edge.To) {
-				return true
-			}
-		}
-		return false
-	}
-	return dfs(root)
+
+	return nil
 }

@@ -1,15 +1,14 @@
-package crdt
+package securecrdt
 
 import (
 	"testing"
 
-	"github.com/eislab-cps/synctree/pkg/core"
-	"github.com/eislab-cps/synctree/pkg/random"
+	"github.com/eislab-cps/synctree/pkg/crdt"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestSecureTreeAdapterSubscribe(t *testing.T) {
-	clientID := core.ClientID(random.GenerateRandomID())
+	prvKey := "d6eb959e9aec2e6fdc44b5862b269e987b8a4d6f2baca542d8acaa97ee5e74f6"
 
 	json := []byte(`{
 		"uid": "user_1",
@@ -32,9 +31,10 @@ func TestSecureTreeAdapterSubscribe(t *testing.T) {
 		]
 	}`)
 
-	c := NewTreeCRDT()
+	c, err := NewSecureTreeCRDT(prvKey)
+	assert.Nil(t, err)
 
-	_, err := c.ImportJSON(json, clientID)
+	_, err = c.ImportJSON(json, prvKey)
 	assert.Nil(t, err, "ImportJSON should not return an error")
 
 	// /friends Array
@@ -45,12 +45,12 @@ func TestSecureTreeAdapterSubscribe(t *testing.T) {
 	// /friends/1/friends Array
 	// /friends/1/friends/0 Map
 
-	events := make(chan NodeEvent, 10)
+	events := make(chan crdt.NodeEvent, 10)
 	c.Subscribe("/", events)
 
 	node, err := c.GetNodeByPath("/friends/1/name")
 	assert.Nil(t, err, "GetNodeByPath should not return an error")
-	_, err = node.SetLiteral("Robert", clientID)
+	_, err = node.SetLiteral("Robert", prvKey)
 	assert.Nil(t, err, "SetLiteral should not return an error")
 
 	event := <-events
@@ -58,7 +58,7 @@ func TestSecureTreeAdapterSubscribe(t *testing.T) {
 }
 
 func TestSecureTreeAdapterSubscribe_ArrayElement(t *testing.T) {
-	clientID := core.ClientID(random.GenerateRandomID())
+	prvKey := "d6eb959e9aec2e6fdc44b5862b269e987b8a4d6f2baca542d8acaa97ee5e74f6"
 
 	json := []byte(`{
 		"uid": "user_1",
@@ -75,17 +75,18 @@ func TestSecureTreeAdapterSubscribe_ArrayElement(t *testing.T) {
 		]
 	}`)
 
-	c := NewTreeCRDT()
-
-	_, err := c.ImportJSON(json, clientID)
+	c, err := NewSecureTreeCRDT(prvKey)
 	assert.Nil(t, err)
 
-	events := make(chan NodeEvent, 10)
+	_, err = c.ImportJSON(json, prvKey)
+	assert.Nil(t, err)
+
+	events := make(chan crdt.NodeEvent, 10)
 	c.Subscribe("/", events)
 
 	node, err := c.GetNodeByPath("/friends/0/name")
 	assert.Nil(t, err)
-	_, err = node.SetLiteral("Bobby", clientID)
+	_, err = node.SetLiteral("Bobby", prvKey)
 	assert.Nil(t, err)
 
 	event := <-events
@@ -93,7 +94,7 @@ func TestSecureTreeAdapterSubscribe_ArrayElement(t *testing.T) {
 }
 
 func TestSecureTreeAdapterSubscribe_DeepNested(t *testing.T) {
-	clientID := core.ClientID(random.GenerateRandomID())
+	prvKey := "d6eb959e9aec2e6fdc44b5862b269e987b8a4d6f2baca542d8acaa97ee5e74f6"
 
 	json := []byte(`{
 		"uid": "user_1",
@@ -116,17 +117,18 @@ func TestSecureTreeAdapterSubscribe_DeepNested(t *testing.T) {
 		]
 	}`)
 
-	c := NewTreeCRDT()
-
-	_, err := c.ImportJSON(json, clientID)
+	c, err := NewSecureTreeCRDT(prvKey)
 	assert.Nil(t, err)
 
-	events := make(chan NodeEvent, 10)
+	_, err = c.ImportJSON(json, prvKey)
+	assert.Nil(t, err)
+
+	events := make(chan crdt.NodeEvent, 10)
 	c.Subscribe("/", events)
 
 	node, err := c.GetNodeByPath("/friends/1/friends/0/name")
 	assert.Nil(t, err)
-	_, err = node.SetLiteral("Daniela", clientID)
+	_, err = node.SetLiteral("Daniela", prvKey)
 	assert.Nil(t, err)
 
 	event := <-events
@@ -134,24 +136,25 @@ func TestSecureTreeAdapterSubscribe_DeepNested(t *testing.T) {
 }
 
 func TestSecureTreeAdapterSubscribe_ExactPath(t *testing.T) {
-	clientID := core.ClientID(random.GenerateRandomID())
+	prvKey := "d6eb959e9aec2e6fdc44b5862b269e987b8a4d6f2baca542d8acaa97ee5e74f6"
 
 	json := []byte(`{
 		"uid": "user_1",
 		"name": "Alice"
 	}`)
 
-	c := NewTreeCRDT()
-
-	_, err := c.ImportJSON(json, clientID)
+	c, err := NewSecureTreeCRDT(prvKey)
 	assert.Nil(t, err)
 
-	events := make(chan NodeEvent, 10)
+	_, err = c.ImportJSON(json, prvKey)
+	assert.Nil(t, err)
+
+	events := make(chan crdt.NodeEvent, 10)
 	c.Subscribe("/name", events)
 
 	node, err := c.GetNodeByPath("/name")
 	assert.Nil(t, err)
-	_, err = node.SetLiteral("Alicia", clientID)
+	_, err = node.SetLiteral("Alicia", prvKey)
 	assert.Nil(t, err)
 
 	event := <-events
@@ -159,7 +162,7 @@ func TestSecureTreeAdapterSubscribe_ExactPath(t *testing.T) {
 }
 
 func TestSecureTreeAdapterSubscribe_Subpath_MultipleEvents(t *testing.T) {
-	clientID := core.ClientID(random.GenerateRandomID())
+	prvKey := "d6eb959e9aec2e6fdc44b5862b269e987b8a4d6f2baca542d8acaa97ee5e74f6"
 
 	json := []byte(`{
 		"uid": "user_1",
@@ -176,17 +179,18 @@ func TestSecureTreeAdapterSubscribe_Subpath_MultipleEvents(t *testing.T) {
 		]
 	}`)
 
-	c := NewTreeCRDT()
-
-	_, err := c.ImportJSON(json, clientID)
+	c, err := NewSecureTreeCRDT(prvKey)
 	assert.Nil(t, err)
 
-	events := make(chan NodeEvent, 10)
+	_, err = c.ImportJSON(json, prvKey)
+	assert.Nil(t, err)
+
+	events := make(chan crdt.NodeEvent, 10)
 	c.Subscribe("/friends/1", events)
 
 	node1, err := c.GetNodeByPath("/friends/1/name")
 	assert.Nil(t, err)
-	_, err = node1.SetLiteral("Charles", clientID)
+	_, err = node1.SetLiteral("Charles", prvKey)
 	assert.Nil(t, err)
 
 	event := <-events

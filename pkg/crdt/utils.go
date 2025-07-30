@@ -2,11 +2,13 @@ package crdt
 
 import (
 	"fmt"
+	"sort"
 
+	"github.com/eislab-cps/synctree/pkg/core"
 	log "github.com/sirupsen/logrus"
 )
 
-func lowestClientID(a, b ClientID) ClientID {
+func lowestClientID(a, b core.ClientID) core.ClientID {
 	if a < b {
 		return a
 	}
@@ -24,7 +26,7 @@ func normalizeNumber(v interface{}) interface{} {
 	}
 }
 
-func setNodeTypeFlags(node *NodeCRDT, nodeType NodeType) {
+func setNodeTypeFlags(node *NodeCRDT, nodeType core.NodeType) {
 	switch nodeType {
 	case Root:
 		node.IsRoot = true
@@ -54,4 +56,29 @@ func buildOpString(opName string, args ...interface{}) string {
 	}
 	str += ")"
 	return str
+}
+
+func sortEdgesByLSEQ(edges []*EdgeCRDT) {
+	sort.SliceStable(edges, func(i, j int) bool {
+		p1 := edges[i].LSEQPosition
+		p2 := edges[j].LSEQPosition
+
+		// Lexicographic comparison
+		for k := 0; k < len(p1) && k < len(p2); k++ {
+			if p1[k] < p2[k] {
+				return true
+			}
+			if p1[k] > p2[k] {
+				return false
+			}
+		}
+
+		// If one is prefix of the other, shorter one is smaller
+		if len(p1) != len(p2) {
+			return len(p1) < len(p2)
+		}
+
+		// Tie-breaker: use Node To ID to guarantee deterministic sort
+		return edges[i].To < edges[j].To
+	})
 }

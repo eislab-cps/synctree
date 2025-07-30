@@ -1,7 +1,9 @@
-package crdt
+package vectorclock
 
 import (
 	"testing"
+
+	"github.com/eislab-cps/synctree/pkg/core"
 )
 
 func TestCopyClock(t *testing.T) {
@@ -9,10 +11,10 @@ func TestCopyClock(t *testing.T) {
 		"client1": 1,
 		"client2": 2,
 	}
-	copy := copyClock(orig)
+	copy := CopyClock(orig)
 
 	// Should be equal initially
-	if !clocksEqual(orig, copy) {
+	if !ClocksEqual(orig, copy) {
 		t.Errorf("Copy of clock not equal to original")
 	}
 
@@ -113,7 +115,7 @@ func TestClocksEqual(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := clocksEqual(tt.a, tt.b)
+			result := ClocksEqual(tt.a, tt.b)
 			if result != tt.expected {
 				t.Errorf("clocksEqual() = %v, want %v", result, tt.expected)
 			}
@@ -163,8 +165,8 @@ func TestResolveConflict(t *testing.T) {
 		name   string
 		a      VectorClock
 		b      VectorClock
-		ownerA ClientID
-		ownerB ClientID
+		ownerA core.ClientID
+		ownerB core.ClientID
 		append bool
 		want   VectorClock
 	}{
@@ -226,8 +228,8 @@ func TestResolveConflict(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			gotClock, _ := resolveConflict(tt.a, tt.b, tt.ownerA, tt.ownerB, tt.append)
-			if !clocksEqual(gotClock, tt.want) {
+			gotClock, _ := ResolveConflict(tt.a, tt.b, tt.ownerA, tt.ownerB, tt.append)
+			if !ClocksEqual(gotClock, tt.want) {
 				t.Errorf("resolveConflict(%v) = %v, want %v", tt.name, gotClock, tt.want)
 			}
 		})

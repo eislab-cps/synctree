@@ -1,4 +1,4 @@
-package crdt
+package lseq
 
 import (
 	"testing"
@@ -27,7 +27,7 @@ func TestGeneratePositionBetweenLSEQ(t *testing.T) {
 	right := Position{10}
 
 	for i := 0; i < 100; i++ {
-		pos := generatePositionBetweenLSEQ(left, right)
+		pos := GeneratePositionBetweenLSEQ(left, right)
 
 		if compareLSEQ(pos, left) <= 0 {
 			t.Errorf("Generated position is not greater than left: got %v", pos)
@@ -45,28 +45,28 @@ func TestGeneratePositionBetweenLSEQ2(t *testing.T) {
 	// Case 1: Space between digits at first level
 	left := Position{2}
 	right := Position{5}
-	pos := generatePositionBetweenLSEQ(left, right)
+	pos := GeneratePositionBetweenLSEQ(left, right)
 	assert.True(t, compareLSEQ(left, pos) < 0, "pos should be > left")
 	assert.True(t, compareLSEQ(pos, right) < 0, "pos should be < right")
 
 	// Case 2: No room at level 0, requires deeper level
 	left = Position{5}
 	right = Position{6}
-	pos = generatePositionBetweenLSEQ(left, right)
+	pos = GeneratePositionBetweenLSEQ(left, right)
 	assert.True(t, compareLSEQ(left, pos) < 0, "pos should be > left")
 	assert.True(t, compareLSEQ(pos, right) < 0, "pos should be < right")
 
 	// Case 3: Deep nesting
 	left = Position{1, 9, 9}
 	right = Position{2}
-	pos = generatePositionBetweenLSEQ(left, right)
+	pos = GeneratePositionBetweenLSEQ(left, right)
 	assert.True(t, compareLSEQ(left, pos) < 0, "pos should be > left")
 	assert.True(t, compareLSEQ(pos, right) < 0, "pos should be < right")
 
 	// Case 4: No right bound (right is empty), treat as [Base]
 	left = Position{3}
 	right = Position{}
-	pos = generatePositionBetweenLSEQ(left, right)
+	pos = GeneratePositionBetweenLSEQ(left, right)
 	assert.True(t, compareLSEQ(left, pos) < 0, "pos should be > left")
 }
 
@@ -76,7 +76,7 @@ func TestGeneratePositionDepth(t *testing.T) {
 
 	maxDepth := 0
 	for i := 0; i < 1000; i++ {
-		pos := generatePositionBetweenLSEQ(left, right)
+		pos := GeneratePositionBetweenLSEQ(left, right)
 		if len(pos) > maxDepth {
 			maxDepth = len(pos)
 		}
