@@ -20,6 +20,17 @@ func (n *NodeCRDT) SetLiteral(value interface{}, clientID core.ClientID) (Mutati
 		return Mutation{}, fmt.Errorf("SetLiteral failed: %w", err)
 	}
 
+	// Record delta operation if a recorder is set
+	if n.tree != nil {
+		n.tree.recordOperation(DeltaOperation{
+			Type:      OpSetLiteral,
+			NodeID:    n.ID,
+			Value:     value,
+			ClientID:  clientID,
+			Clock:     vectorclock.VectorClock{clientID: mut.Version},
+		})
+	}
+
 	return mut, nil
 }
 
@@ -104,6 +115,17 @@ func (n *NodeCRDT) setLiteralWithVersion(value interface{}, clientID core.Client
 			"Error":          err,
 		}).Error("SetLiteral failed")
 		return fmt.Errorf("SetLiteral failed: %w", err)
+	}
+
+	// Record delta operation if a recorder is set
+	if n.tree != nil {
+		n.tree.recordOperation(DeltaOperation{
+			Type:      OpSetLiteral,
+			NodeID:    n.ID,
+			Value:     value,
+			ClientID:  clientID,
+			Clock:     vectorclock.VectorClock{clientID: version},
+		})
 	}
 
 	return nil

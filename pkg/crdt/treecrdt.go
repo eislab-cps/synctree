@@ -47,11 +47,24 @@ type EdgeCRDT struct {
 }
 
 type TreeCRDT struct {
-	Root        *NodeCRDT                 `json:"root"`
-	Nodes       map[core.NodeID]*NodeCRDT `json:"nodes"`
-	ABACPolicy  *abac.ABACPolicy          `json:"abac"`
-	Secure      bool                      `json:"secure"`
-	subscribers []subscriber
+	Root           *NodeCRDT                 `json:"root"`
+	Nodes          map[core.NodeID]*NodeCRDT `json:"nodes"`
+	ABACPolicy     *abac.ABACPolicy          `json:"abac"`
+	Secure         bool                      `json:"secure"`
+	subscribers    []subscriber
+	deltaRecorder  OperationRecorder         `json:"-"` // Don't serialize the recorder
+}
+
+// SetDeltaRecorder sets the operation recorder for delta synchronization
+func (c *TreeCRDT) SetDeltaRecorder(recorder OperationRecorder) {
+	c.deltaRecorder = recorder
+}
+
+// recordOperation records a delta operation if a recorder is set
+func (c *TreeCRDT) recordOperation(op DeltaOperation) {
+	if c.deltaRecorder != nil {
+		c.deltaRecorder.RecordOperation(op)
+	}
 }
 
 func NewTreeCRDT() *TreeCRDT {
@@ -111,6 +124,19 @@ func (c *TreeCRDT) getOrCreateNode(id core.NodeID, nodeType core.NodeType, clien
 		node.Clock = make(vectorclock.VectorClock)
 		node.Clock[clientID] = version
 		node.Owner = clientID
+		
+		// Record delta operation for node creation
+		c.recordOperation(DeltaOperation{
+			Type:      OpCreateNode,
+			NodeID:    id,
+			ClientID:  clientID,
+			Clock:     node.Clock,
+			Metadata: map[string]interface{}{
+				"is_map":     node.IsMap,
+				"is_array":   node.IsArray,
+				"is_literal": node.IsLiteral,
+			},
+		})
 	}
 	return c.Nodes[id]
 }
@@ -264,6 +290,18 @@ func (c *TreeCRDT) addEdgeWithVersion(from, to core.NodeID, label string, client
 		toNode.ParentID = from
 
 		c.notifySubscribers(fromNode.ID, EventAdded)
+		
+		// Record delta operation
+		c.recordOperation(DeltaOperation{
+			Type:      OpAddEdge,
+			ClientID:  clientID,
+			Clock:     newClock,
+			EdgeInfo: &EdgeInfo{
+				FromNodeID: from,
+				ToNodeID:   to,
+				Label:      label,
+			},
+		})
 
 		log.WithFields(log.Fields{"NodeID": from, "To": to, "Label": label, "Version": newVersion}).Debug("Edge added")
 	} else {

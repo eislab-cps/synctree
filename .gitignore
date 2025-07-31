@@ -1,6 +1,8 @@
 .DS_Store
 bin
 coverage.txt
+*coverage.out
+*coverage.html
 .claude/
 .vscode/
 CLAUDE.md

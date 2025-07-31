@@ -3,11 +3,15 @@ package crdt
 import (
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/eislab-cps/synctree/pkg/core"
 	"github.com/eislab-cps/synctree/pkg/vectorclock"
 )
+
+// OperationRecorder interface for recording delta operations
+type OperationRecorder interface {
+	RecordOperation(op DeltaOperation)
+}
 
 // Operation types for delta synchronization
 type OperationType string
@@ -31,7 +35,6 @@ type DeltaOperation struct {
 	Value     interface{}                     `json:"value,omitempty"`
 	Clock     vectorclock.VectorClock         `json:"clock"`
 	ClientID  core.ClientID                   `json:"client_id"`
-	Timestamp time.Time              `json:"timestamp"`
 	Metadata  map[string]interface{} `json:"metadata,omitempty"`
 }
 
@@ -49,7 +52,6 @@ type Delta struct {
 	FromClock  vectorclock.VectorClock `json:"from_clock"`
 	ToClock    vectorclock.VectorClock `json:"to_clock"`
 	SourceID   core.ClientID           `json:"source_id"`
-	Created    time.Time               `json:"created"`
 }
 
 // DeltaSync provides delta synchronization capabilities for TreeCRDT
@@ -59,16 +61,22 @@ type DeltaSync struct {
 	maxHistory int
 }
 
-// NewDeltaSync creates a new DeltaSync instance
+// NewDeltaSync creates a new DeltaSync instance and registers it with the tree
 func NewDeltaSync(tree *TreeCRDT) *DeltaSync {
-	return &DeltaSync{
+	ds := &DeltaSync{
 		tree:       tree,
 		history:    make([]DeltaOperation, 0),
 		maxHistory: 1000, // Default max history size
 	}
+	
+	// Register this DeltaSync as the operation recorder for the tree
+	tree.SetDeltaRecorder(ds)
+	
+	return ds
 }
 
 // RecordOperation records an operation in the delta history
+// This implements the OperationRecorder interface
 func (ds *DeltaSync) RecordOperation(op DeltaOperation) {
 	ds.history = append(ds.history, op)
 
@@ -97,7 +105,6 @@ func (ds *DeltaSync) GenerateDelta(fromClock vectorclock.VectorClock, clientID c
 		FromClock:  fromClock,
 		ToClock:    currentClock,
 		SourceID:   clientID,
-		Created:    time.Now(),
 	}
 }
 
@@ -258,10 +265,20 @@ func (ds *DeltaSync) applySetLiteral(op DeltaOperation) error {
 		return fmt.Errorf("node %s not found", op.NodeID)
 	}
 
-	// Check clock ordering
-	if !clockDominatesOrEqual(node.Clock, op.Clock) {
+	// Use proper conflict resolution like the rest of the CRDT system
+	winningClock, winningOwner := vectorclock.ResolveConflict(
+		node.Clock, 
+		op.Clock, 
+		node.Owner, 
+		op.ClientID, 
+		false, // LWW mode, not append
+	)
+
+	// Apply the operation only if the operation wins the conflict resolution
+	if vectorclock.ClocksEqual(winningClock, op.Clock) && winningOwner == op.ClientID {
+		node.IsLiteral = true
 		node.LiteralValue = op.Value
-		node.Clock = mergeClock(node.Clock, op.Clock)
+		node.Clock = op.Clock
 		node.Owner = op.ClientID
 	}
 
