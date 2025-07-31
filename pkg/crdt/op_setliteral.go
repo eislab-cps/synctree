@@ -23,7 +23,7 @@ func (n *NodeCRDT) SetLiteral(value interface{}, clientID core.ClientID) (Mutati
 	// Record delta operation if a recorder is set
 	if n.tree != nil {
 		n.tree.recordOperation(DeltaOperation{
-			Type:      OpSetLiteral,
+			Type:      OPSetLiteral,
 			NodeID:    n.ID,
 			Value:     value,
 			ClientID:  clientID,
@@ -120,7 +120,7 @@ func (n *NodeCRDT) setLiteralWithVersion(value interface{}, clientID core.Client
 	// Record delta operation if a recorder is set
 	if n.tree != nil {
 		n.tree.recordOperation(DeltaOperation{
-			Type:      OpSetLiteral,
+			Type:      OPSetLiteral,
 			NodeID:    n.ID,
 			Value:     value,
 			ClientID:  clientID,

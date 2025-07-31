@@ -16,7 +16,7 @@ func TestDeltaSerialization(t *testing.T) {
 	delta := &Delta{
 		Operations: []DeltaOperation{
 			{
-				Type:     OpCreateNode,
+				Type:     OPCreateNode,
 				NodeID:   core.NodeID("test-node"),
 				ClientID: core.ClientID("client-1"),
 				Clock:    vectorclock.VectorClock{core.ClientID("client-1"): 1},
@@ -28,7 +28,7 @@ func TestDeltaSerialization(t *testing.T) {
 	// Test that delta can be created and accessed
 	assert.NotNil(t, delta)
 	assert.Len(t, delta.Operations, 1)
-	assert.Equal(t, OpCreateNode, delta.Operations[0].Type)
+	assert.Equal(t, OPCreateNode, delta.Operations[0].Type)
 	assert.Equal(t, core.ClientID("client-1"), delta.SourceID)
 }
 
@@ -41,7 +41,7 @@ func TestDeltaOperationRecording(t *testing.T) {
 
 	// Record an operation
 	op := DeltaOperation{
-		Type:     OpCreateNode,
+		Type:     OPCreateNode,
 		NodeID:   core.NodeID("test-node"),
 		ClientID: core.ClientID("client-1"),
 		Clock:    vectorclock.VectorClock{core.ClientID("client-1"): 1},
@@ -51,7 +51,7 @@ func TestDeltaOperationRecording(t *testing.T) {
 
 	// Should have recorded the operation
 	assert.Len(t, deltaSync.history, 1)
-	assert.Equal(t, OpCreateNode, deltaSync.history[0].Type)
+	assert.Equal(t, OPCreateNode, deltaSync.history[0].Type)
 	assert.Equal(t, core.NodeID("test-node"), deltaSync.history[0].NodeID)
 }
 
@@ -62,13 +62,13 @@ func TestDeltaGeneration(t *testing.T) {
 	// Add some operations to history
 	ops := []DeltaOperation{
 		{
-			Type:     OpCreateNode,
+			Type:     OPCreateNode,
 			NodeID:   core.NodeID("node-1"),
 			ClientID: core.ClientID("client-1"),
 			Clock:    vectorclock.VectorClock{core.ClientID("client-1"): 1},
 		},
 		{
-			Type:     OpCreateNode,
+			Type:     OPCreateNode,
 			NodeID:   core.NodeID("node-2"),
 			ClientID: core.ClientID("client-1"),
 			Clock:    vectorclock.VectorClock{core.ClientID("client-1"): 2},
@@ -86,8 +86,8 @@ func TestDeltaGeneration(t *testing.T) {
 	assert.NotNil(t, delta)
 	assert.Equal(t, clientID, delta.SourceID)
 	assert.Len(t, delta.Operations, 2)
-	assert.Equal(t, OpCreateNode, delta.Operations[0].Type)
-	assert.Equal(t, OpCreateNode, delta.Operations[1].Type)
+	assert.Equal(t, OPCreateNode, delta.Operations[0].Type)
+	assert.Equal(t, OPCreateNode, delta.Operations[1].Type)
 }
 
 func TestBasicDeltaSync(t *testing.T) {
@@ -111,7 +111,7 @@ func TestApplyDeltaModifiesTree(t *testing.T) {
 	delta := &Delta{
 		Operations: []DeltaOperation{
 			{
-				Type:     OpCreateNode,
+				Type:     OPCreateNode,
 				NodeID:   core.NodeID("new-node"),
 				ParentID: core.NodeID("root"),
 				ClientID: core.ClientID("client-1"),
@@ -158,7 +158,7 @@ func TestApplyDeltaWithConflicts(t *testing.T) {
 	delta := &Delta{
 		Operations: []DeltaOperation{
 			{
-				Type:     OpSetLiteral,
+				Type:     OPSetLiteral,
 				NodeID:   core.NodeID("literal-node"),
 				Value:    "new-value",
 				ClientID: core.ClientID("client-2"),
@@ -189,7 +189,7 @@ func TestApplyDeltaPreservesConsistency(t *testing.T) {
 	delta := &Delta{
 		Operations: []DeltaOperation{
 			{
-				Type:     OpCreateNode,
+				Type:     OPCreateNode,
 				NodeID:   core.NodeID("child-node"),
 				ParentID: core.NodeID("root"),
 				ClientID: clientID,
@@ -199,14 +199,14 @@ func TestApplyDeltaPreservesConsistency(t *testing.T) {
 				},
 			},
 			{
-				Type:     OpSetLiteral,
+				Type:     OPSetLiteral,
 				NodeID:   core.NodeID("child-node"),
 				Value:    "child-value",
 				ClientID: clientID,
 				Clock:    vectorclock.VectorClock{clientID: 3},
 			},
 			{
-				Type:     OpAddEdge,
+				Type:     OPAddEdge,
 				ClientID: clientID,
 				Clock:    vectorclock.VectorClock{clientID: 4},
 				EdgeInfo: &EdgeInfo{
@@ -243,7 +243,7 @@ func TestApplyCreateNodeOperation(t *testing.T) {
 	deltaSync := NewDeltaSync(tree)
 
 	op := DeltaOperation{
-		Type:     OpCreateNode,
+		Type:     OPCreateNode,
 		NodeID:   core.NodeID("test-node"),
 		ParentID: core.NodeID("root"),
 		ClientID: core.ClientID("client-1"),
@@ -286,7 +286,7 @@ func TestApplySetLiteralOperation(t *testing.T) {
 	}
 
 	op := DeltaOperation{
-		Type:      OpSetLiteral,
+		Type:      OPSetLiteral,
 		NodeID:    nodeID,
 		Value:     "test-literal-value",
 		ClientID:  core.ClientID("client-2"),
@@ -333,7 +333,7 @@ func TestApplyAddEdgeOperation(t *testing.T) {
 	}
 
 	op := DeltaOperation{
-		Type:     OpAddEdge,
+		Type:     OPAddEdge,
 		ClientID: core.ClientID("client-2"),
 		Clock:    vectorclock.VectorClock{core.ClientID("client-2"): 1},
 		EdgeInfo: &EdgeInfo{
@@ -380,7 +380,7 @@ func TestApplyRemoveEdgeOperation(t *testing.T) {
 	}
 
 	op := DeltaOperation{
-		Type:     OpRemoveEdge,
+		Type:     OPRemoveEdge,
 		ClientID: core.ClientID("client-2"),
 		Clock:    vectorclock.VectorClock{core.ClientID("client-2"): 1},
 		EdgeInfo: &EdgeInfo{
@@ -422,7 +422,7 @@ func TestApplyDeleteNodeOperation(t *testing.T) {
 	}
 
 	op := DeltaOperation{
-		Type:      OpDeleteNode,
+		Type:      OPDeleteNode,
 		NodeID:    core.NodeID("test-node"),
 		ClientID:  core.ClientID("client-2"),
 		Clock:     vectorclock.VectorClock{core.ClientID("client-2"): 1},
@@ -457,7 +457,7 @@ func TestApplyUpdateNodeOperation(t *testing.T) {
 	}
 
 	op := DeltaOperation{
-		Type:     OpUpdateNode,
+		Type:     OPUpdateNode,
 		NodeID:   nodeID,
 		ClientID: core.ClientID("client-2"),
 		Clock:    vectorclock.VectorClock{core.ClientID("client-2"): 1},
@@ -480,7 +480,7 @@ func TestApplyUpdateClockOperation(t *testing.T) {
 	deltaSync := NewDeltaSync(tree)
 
 	op := DeltaOperation{
-		Type:     OpUpdateClock,
+		Type:     OPUpdateClock,
 		NodeID:   tree.Root.ID,
 		ClientID: core.ClientID("client-2"),
 		Clock:    vectorclock.VectorClock{core.ClientID("client-1"): 5, core.ClientID("client-2"): 3},
@@ -500,10 +500,10 @@ func TestApplyOperationAllSwitchCases(t *testing.T) {
 	tree := NewTreeCRDT()
 	deltaSync := NewDeltaSync(tree)
 
-	// Test Case 1: OpCreateNode
-	t.Run("OpCreateNode", func(t *testing.T) {
+	// Test Case 1: OPCreateNode
+	t.Run("OPCreateNode", func(t *testing.T) {
 		op := DeltaOperation{
-			Type:     OpCreateNode,
+			Type:     OPCreateNode,
 			NodeID:   core.NodeID("test-create-node"),
 			ClientID: core.ClientID("client-1"),
 			Clock:    vectorclock.VectorClock{core.ClientID("client-1"): 1},
@@ -517,11 +517,11 @@ func TestApplyOperationAllSwitchCases(t *testing.T) {
 
 		// Verify node was created
 		_, exists := tree.Nodes[core.NodeID("test-create-node")]
-		assert.True(t, exists, "Node should be created via OpCreateNode")
+		assert.True(t, exists, "Node should be created via OPCreateNode")
 	})
 
-	// Test Case 2: OpUpdateNode
-	t.Run("OpUpdateNode", func(t *testing.T) {
+	// Test Case 2: OPUpdateNode
+	t.Run("OPUpdateNode", func(t *testing.T) {
 		// First create a node to update
 		nodeID := core.NodeID("test-update-node")
 		tree.Nodes[nodeID] = &NodeCRDT{
@@ -535,7 +535,7 @@ func TestApplyOperationAllSwitchCases(t *testing.T) {
 		}
 
 		op := DeltaOperation{
-			Type:     OpUpdateNode,
+			Type:     OPUpdateNode,
 			NodeID:   nodeID,
 			ClientID: core.ClientID("client-2"),
 			Clock:    vectorclock.VectorClock{core.ClientID("client-2"): 1},
@@ -552,8 +552,8 @@ func TestApplyOperationAllSwitchCases(t *testing.T) {
 		assert.Equal(t, 1, node.Clock[core.ClientID("client-2")])
 	})
 
-	// Test Case 3: OpDeleteNode
-	t.Run("OpDeleteNode", func(t *testing.T) {
+	// Test Case 3: OPDeleteNode
+	t.Run("OPDeleteNode", func(t *testing.T) {
 		// First create a node to delete
 		nodeID := core.NodeID("test-delete-node")
 		tree.Nodes[nodeID] = &NodeCRDT{
@@ -568,7 +568,7 @@ func TestApplyOperationAllSwitchCases(t *testing.T) {
 		}
 
 		op := DeltaOperation{
-			Type:      OpDeleteNode,
+			Type:      OPDeleteNode,
 			NodeID:    nodeID,
 			ClientID:  core.ClientID("client-2"),
 			Clock:     vectorclock.VectorClock{core.ClientID("client-2"): 1},
@@ -579,11 +579,11 @@ func TestApplyOperationAllSwitchCases(t *testing.T) {
 
 		// Verify node was marked as deleted
 		node := tree.Nodes[nodeID]
-		assert.True(t, node.IsDeleted, "Node should be marked as deleted via OpDeleteNode")
+		assert.True(t, node.IsDeleted, "Node should be marked as deleted via OPDeleteNode")
 	})
 
-	// Test Case 4: OpAddEdge
-	t.Run("OpAddEdge", func(t *testing.T) {
+	// Test Case 4: OPAddEdge
+	t.Run("OPAddEdge", func(t *testing.T) {
 		// Create nodes to connect
 		fromNodeID := core.NodeID("test-from-node")
 		toNodeID := core.NodeID("test-to-node")
@@ -610,7 +610,7 @@ func TestApplyOperationAllSwitchCases(t *testing.T) {
 		}
 
 		op := DeltaOperation{
-			Type:     OpAddEdge,
+			Type:     OPAddEdge,
 			ClientID: core.ClientID("client-2"),
 			Clock:    vectorclock.VectorClock{core.ClientID("client-2"): 1},
 			EdgeInfo: &EdgeInfo{
@@ -625,12 +625,12 @@ func TestApplyOperationAllSwitchCases(t *testing.T) {
 
 		// Verify edge was added
 		fromNode := tree.Nodes[fromNodeID]
-		assert.Len(t, fromNode.Edges, 1, "Edge should be added via OpAddEdge")
+		assert.Len(t, fromNode.Edges, 1, "Edge should be added via OPAddEdge")
 		assert.Equal(t, "test-edge", fromNode.Edges[0].Label)
 	})
 
-	// Test Case 5: OpRemoveEdge
-	t.Run("OpRemoveEdge", func(t *testing.T) {
+	// Test Case 5: OPRemoveEdge
+	t.Run("OPRemoveEdge", func(t *testing.T) {
 		// Create nodes with an existing edge to remove
 		parentNodeID := core.NodeID("test-parent-remove")
 		childNodeID := core.NodeID("test-child-remove")
@@ -660,7 +660,7 @@ func TestApplyOperationAllSwitchCases(t *testing.T) {
 		}
 
 		op := DeltaOperation{
-			Type:     OpRemoveEdge,
+			Type:     OPRemoveEdge,
 			ClientID: core.ClientID("client-2"),
 			Clock:    vectorclock.VectorClock{core.ClientID("client-2"): 1},
 			EdgeInfo: &EdgeInfo{
@@ -675,12 +675,12 @@ func TestApplyOperationAllSwitchCases(t *testing.T) {
 
 		// Verify edge was removed
 		parentNode := tree.Nodes[parentNodeID]
-		assert.Len(t, parentNode.Edges, 1, "One edge should be removed via OpRemoveEdge")
+		assert.Len(t, parentNode.Edges, 1, "One edge should be removed via OPRemoveEdge")
 		assert.Equal(t, "keep-this-edge", parentNode.Edges[0].Label, "Correct edge should remain")
 	})
 
-	// Test Case 6: OpSetLiteral
-	t.Run("OpSetLiteral", func(t *testing.T) {
+	// Test Case 6: OPSetLiteral
+	t.Run("OPSetLiteral", func(t *testing.T) {
 		// Create a node to set literal value on
 		nodeID := core.NodeID("test-literal-node")
 		tree.Nodes[nodeID] = &NodeCRDT{
@@ -695,7 +695,7 @@ func TestApplyOperationAllSwitchCases(t *testing.T) {
 		}
 
 		op := DeltaOperation{
-			Type:      OpSetLiteral,
+			Type:      OPSetLiteral,
 			NodeID:    nodeID,
 			Value:     "new-literal-value",
 			ClientID:  core.ClientID("client-2"),
@@ -707,16 +707,16 @@ func TestApplyOperationAllSwitchCases(t *testing.T) {
 
 		// Verify literal value was set
 		node := tree.Nodes[nodeID]
-		assert.Equal(t, "new-literal-value", node.LiteralValue, "Literal value should be set via OpSetLiteral")
+		assert.Equal(t, "new-literal-value", node.LiteralValue, "Literal value should be set via OPSetLiteral")
 	})
 
-	// Test Case 7: OpUpdateClock
-	t.Run("OpUpdateClock", func(t *testing.T) {
+	// Test Case 7: OPUpdateClock
+	t.Run("OPUpdateClock", func(t *testing.T) {
 		// Use an existing node to update its clock
 		existingNodeID := core.NodeID("test-create-node") // Reuse node from first test
 
 		op := DeltaOperation{
-			Type:     OpUpdateClock,
+			Type:     OPUpdateClock,
 			NodeID:   existingNodeID,
 			ClientID: core.ClientID("client-3"),
 			Clock:    vectorclock.VectorClock{core.ClientID("client-3"): 5},
@@ -727,13 +727,13 @@ func TestApplyOperationAllSwitchCases(t *testing.T) {
 
 		// Verify clock was updated
 		node := tree.Nodes[existingNodeID]
-		assert.Equal(t, 5, node.Clock[core.ClientID("client-3")], "Clock should be updated via OpUpdateClock")
+		assert.Equal(t, 5, node.Clock[core.ClientID("client-3")], "Clock should be updated via OPUpdateClock")
 	})
 
 	// Test Case 8: Default case (unknown operation type)
 	t.Run("UnknownOperationType", func(t *testing.T) {
 		op := DeltaOperation{
-			Type:      OperationType("unknown_operation_type"),
+			Type:      Operation(999), // Invalid operation type
 			NodeID:    core.NodeID("some-node"),
 			ClientID:  core.ClientID("client-1"),
 			Clock:     vectorclock.VectorClock{core.ClientID("client-1"): 1},
@@ -742,7 +742,7 @@ func TestApplyOperationAllSwitchCases(t *testing.T) {
 		err := deltaSync.applyOperation(op)
 		assert.Error(t, err, "Unknown operation type should return an error")
 		assert.Contains(t, err.Error(), "unknown operation type", "Error should mention unknown operation type")
-		assert.Contains(t, err.Error(), "unknown_operation_type", "Error should include the actual unknown type")
+		assert.Contains(t, err.Error(), "999", "Error should include the actual unknown type")
 	})
 }
 
@@ -753,9 +753,9 @@ func TestApplyOperationThroughApplyDelta(t *testing.T) {
 	// Create a delta with multiple operation types to ensure applyOperation switch is exercised
 	delta := &Delta{
 		Operations: []DeltaOperation{
-			// Test OpCreateNode path through applyOperation
+			// Test OPCreateNode path through applyOperation
 			{
-				Type:     OpCreateNode,
+				Type:     OPCreateNode,
 				NodeID:   core.NodeID("delta-create-node"),
 				ClientID: core.ClientID("client-1"),
 				Clock:    vectorclock.VectorClock{core.ClientID("client-1"): 1},
@@ -763,17 +763,17 @@ func TestApplyOperationThroughApplyDelta(t *testing.T) {
 					"is_literal": true,
 				},
 			},
-			// Test OpSetLiteral path through applyOperation
+			// Test OPSetLiteral path through applyOperation
 			{
-				Type:      OpSetLiteral,
+				Type:      OPSetLiteral,
 				NodeID:    core.NodeID("delta-create-node"),
 				Value:     "delta-literal-value",
 				ClientID:  core.ClientID("client-1"),
 				Clock:     vectorclock.VectorClock{core.ClientID("client-1"): 2},
 			},
-			// Test OpUpdateClock path through applyOperation
+			// Test OPUpdateClock path through applyOperation
 			{
-				Type:     OpUpdateClock,
+				Type:     OPUpdateClock,
 				NodeID:   core.NodeID("delta-create-node"),
 				ClientID: core.ClientID("client-2"),
 				Clock:    vectorclock.VectorClock{core.ClientID("client-2"): 1},
@@ -804,20 +804,20 @@ func TestApplyDeltaToMissingNode(t *testing.T) {
 	delta := &Delta{
 		Operations: []DeltaOperation{
 			{
-				Type:     OpSetLiteral,
+				Type:     OPSetLiteral,
 				NodeID:   core.NodeID("non-existent"),
 				Value:    "test",
 				ClientID: core.ClientID("client-1"),
 				Clock:    vectorclock.VectorClock{core.ClientID("client-1"): 1},
 			},
 			{
-				Type:     OpUpdateNode,
+				Type:     OPUpdateNode,
 				NodeID:   core.NodeID("also-missing"),
 				ClientID: core.ClientID("client-1"),
 				Clock:    vectorclock.VectorClock{core.ClientID("client-1"): 2},
 			},
 			{
-				Type:     OpUpdateClock,
+				Type:     OPUpdateClock,
 				NodeID:   core.NodeID("missing-too"),
 				ClientID: core.ClientID("client-1"),
 				Clock:    vectorclock.VectorClock{core.ClientID("client-1"): 3},
@@ -843,7 +843,7 @@ func TestApplyMalformedDelta(t *testing.T) {
 		{
 			name: "AddEdge without EdgeInfo",
 			operation: DeltaOperation{
-				Type:     OpAddEdge,
+				Type:     OPAddEdge,
 				ClientID: core.ClientID("client-1"),
 				Clock:    vectorclock.VectorClock{core.ClientID("client-1"): 1},
 				EdgeInfo: nil, // Missing EdgeInfo
@@ -853,7 +853,7 @@ func TestApplyMalformedDelta(t *testing.T) {
 		{
 			name: "RemoveEdge without EdgeInfo",
 			operation: DeltaOperation{
-				Type:     OpRemoveEdge,
+				Type:     OPRemoveEdge,
 				ClientID: core.ClientID("client-1"),
 				Clock:    vectorclock.VectorClock{core.ClientID("client-1"): 1},
 				EdgeInfo: nil, // Missing EdgeInfo
@@ -863,7 +863,7 @@ func TestApplyMalformedDelta(t *testing.T) {
 		{
 			name: "AddEdge with non-existent from node",
 			operation: DeltaOperation{
-				Type:     OpAddEdge,
+				Type:     OPAddEdge,
 				ClientID: core.ClientID("client-1"),
 				Clock:    vectorclock.VectorClock{core.ClientID("client-1"): 1},
 				EdgeInfo: &EdgeInfo{
@@ -877,7 +877,7 @@ func TestApplyMalformedDelta(t *testing.T) {
 		{
 			name: "Unknown operation type",
 			operation: DeltaOperation{
-				Type:     OperationType("unknown_operation"),
+				Type:     Operation(999), // Invalid operation type
 				ClientID: core.ClientID("client-1"),
 				Clock:    vectorclock.VectorClock{core.ClientID("client-1"): 1},
 			},
@@ -920,7 +920,7 @@ func TestDeltaWithInvalidClock(t *testing.T) {
 
 	// Try to apply operation with older clock (should be ignored for set literal)
 	op := DeltaOperation{
-		Type:     OpSetLiteral,
+		Type:     OPSetLiteral,
 		NodeID:   core.NodeID("test-node"),
 		Value:    "should-be-ignored",
 		ClientID: core.ClientID("client-2"),
@@ -948,7 +948,7 @@ func TestHistoryTrimmingPreservesEssentialOperations(t *testing.T) {
 	// Add more operations than the limit
 	for i := 0; i < 5; i++ {
 		op := DeltaOperation{
-			Type:     OpCreateNode,
+			Type:     OPCreateNode,
 			NodeID:   core.NodeID(fmt.Sprintf("node-%d", i)),
 			ClientID: clientID,
 			Clock:    vectorclock.VectorClock{clientID: i + 1},
@@ -978,7 +978,7 @@ func TestDeltaGenerationWithTrimmedHistory(t *testing.T) {
 	// Add operations that will be trimmed
 	for i := 0; i < 4; i++ {
 		op := DeltaOperation{
-			Type:     OpCreateNode,
+			Type:     OPCreateNode,
 			NodeID:   core.NodeID(fmt.Sprintf("node-%d", i)),
 			ClientID: clientID,
 			Clock:    vectorclock.VectorClock{clientID: i + 1},
@@ -1037,7 +1037,7 @@ func TestSecureTreeGeneratesDeltas(t *testing.T) {
 	assert.Len(t, deltaSync.history, 1, "SetLiteral should generate a delta operation")
 	
 	op := deltaSync.history[0]
-	assert.Equal(t, OpSetLiteral, op.Type)
+	assert.Equal(t, OPSetLiteral, op.Type)
 	assert.Equal(t, root.ID(), op.NodeID)
 	assert.Equal(t, "test-value", op.Value)
 	assert.NotEmpty(t, op.ClientID)
@@ -1487,7 +1487,7 @@ func TestDeltaHistoryLimit(t *testing.T) {
 	// Add more operations than the limit
 	for i := 0; i < 5; i++ {
 		op := DeltaOperation{
-			Type:     OpCreateNode,
+			Type:     OPCreateNode,
 			NodeID:   core.NodeID("node-" + string(rune('0'+i))),
 			ClientID: clientID,
 			Clock:    vectorclock.VectorClock{clientID: i + 1},

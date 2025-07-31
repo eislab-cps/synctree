@@ -13,22 +13,9 @@ type OperationRecorder interface {
 	RecordOperation(op DeltaOperation)
 }
 
-// Operation types for delta synchronization
-type OperationType string
-
-const (
-	OpCreateNode  OperationType = "create_node"
-	OpUpdateNode  OperationType = "update_node"
-	OpDeleteNode  OperationType = "delete_node"
-	OpAddEdge     OperationType = "add_edge"
-	OpRemoveEdge  OperationType = "remove_edge"
-	OpSetLiteral  OperationType = "set_literal"
-	OpUpdateClock OperationType = "update_clock"
-)
-
 // DeltaOperation represents a single operation in a delta
 type DeltaOperation struct {
-	Type      OperationType                   `json:"type"`
+	Type      Operation                       `json:"type"`
 	NodeID    core.NodeID                     `json:"node_id,omitempty"`
 	ParentID  core.NodeID                     `json:"parent_id,omitempty"`
 	EdgeInfo  *EdgeInfo                       `json:"edge_info,omitempty"`
@@ -113,7 +100,7 @@ func (ds *DeltaSync) ApplyDelta(delta *Delta) error {
 	// Apply each operation in order
 	for _, op := range delta.Operations {
 		if err := ds.applyOperation(op); err != nil {
-			return fmt.Errorf("failed to apply operation %s: %w", op.Type, err)
+			return fmt.Errorf("failed to apply operation %d: %w", op.Type, err)
 		}
 	}
 
@@ -123,29 +110,29 @@ func (ds *DeltaSync) ApplyDelta(delta *Delta) error {
 // applyOperation applies a single delta operation to the tree
 func (ds *DeltaSync) applyOperation(op DeltaOperation) error {
 	switch op.Type {
-	case OpCreateNode:
+	case OPCreateNode:
 		// Handle node creation
 		return ds.applyCreateNode(op)
-	case OpUpdateNode:
-		// Handle node update
-		return ds.applyUpdateNode(op)
-	case OpDeleteNode:
-		// Handle node deletion
-		return ds.applyDeleteNode(op)
-	case OpAddEdge:
+	case OPAddEdge:
 		// Handle edge addition
 		return ds.applyAddEdge(op)
-	case OpRemoveEdge:
+	case OPRemoveEdge:
 		// Handle edge removal
 		return ds.applyRemoveEdge(op)
-	case OpSetLiteral:
+	case OPSetLiteral:
 		// Handle literal value setting
 		return ds.applySetLiteral(op)
-	case OpUpdateClock:
+	case OPDeleteNode:
+		// Handle node deletion
+		return ds.applyDeleteNode(op)
+	case OPUpdateNode:
+		// Handle node update
+		return ds.applyUpdateNode(op)
+	case OPUpdateClock:
 		// Handle clock update
 		return ds.applyUpdateClock(op)
 	default:
-		return fmt.Errorf("unknown operation type: %s", op.Type)
+		return fmt.Errorf("unknown operation type: %d", op.Type)
 	}
 }
 

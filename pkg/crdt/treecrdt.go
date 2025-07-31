@@ -127,7 +127,7 @@ func (c *TreeCRDT) getOrCreateNode(id core.NodeID, nodeType core.NodeType, clien
 		
 		// Record delta operation for node creation
 		c.recordOperation(DeltaOperation{
-			Type:      OpCreateNode,
+			Type:      OPCreateNode,
 			NodeID:    id,
 			ClientID:  clientID,
 			Clock:     node.Clock,
@@ -293,7 +293,7 @@ func (c *TreeCRDT) addEdgeWithVersion(from, to core.NodeID, label string, client
 		
 		// Record delta operation
 		c.recordOperation(DeltaOperation{
-			Type:      OpAddEdge,
+			Type:      OPAddEdge,
 			ClientID:  clientID,
 			Clock:     newClock,
 			EdgeInfo: &EdgeInfo{
