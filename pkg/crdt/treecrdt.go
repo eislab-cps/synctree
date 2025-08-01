@@ -52,20 +52,9 @@ type TreeCRDT struct {
 	ABACPolicy     *abac.ABACPolicy          `json:"abac"`
 	Secure         bool                      `json:"secure"`
 	subscribers    []subscriber
-	deltaRecorder  OperationRecorder         `json:"-"` // Don't serialize the recorder
+	// Note: Delta recorder removed - true delta-state CRDTs don't need operation recording
 }
 
-// SetDeltaRecorder sets the operation recorder for delta synchronization
-func (c *TreeCRDT) SetDeltaRecorder(recorder OperationRecorder) {
-	c.deltaRecorder = recorder
-}
-
-// recordOperation records a delta operation if a recorder is set
-func (c *TreeCRDT) recordOperation(op DeltaOperation) {
-	if c.deltaRecorder != nil {
-		c.deltaRecorder.RecordOperation(op)
-	}
-}
 
 func NewTreeCRDT() *TreeCRDT {
 	rootID := "root"
@@ -125,18 +114,7 @@ func (c *TreeCRDT) getOrCreateNode(id core.NodeID, nodeType core.NodeType, clien
 		node.Clock[clientID] = version
 		node.Owner = clientID
 		
-		// Record delta operation for node creation
-		c.recordOperation(DeltaOperation{
-			Type:      OPCreateNode,
-			NodeID:    id,
-			ClientID:  clientID,
-			Clock:     node.Clock,
-			Metadata: map[string]interface{}{
-				"is_map":     node.IsMap,
-				"is_array":   node.IsArray,
-				"is_literal": node.IsLiteral,
-			},
-		})
+		// Note: Delta recording handled at state level via DeltaSync
 	}
 	return c.Nodes[id]
 }
@@ -291,17 +269,7 @@ func (c *TreeCRDT) addEdgeWithVersion(from, to core.NodeID, label string, client
 
 		c.notifySubscribers(fromNode.ID, EventAdded)
 		
-		// Record delta operation
-		c.recordOperation(DeltaOperation{
-			Type:      OPAddEdge,
-			ClientID:  clientID,
-			Clock:     newClock,
-			EdgeInfo: &EdgeInfo{
-				FromNodeID: from,
-				ToNodeID:   to,
-				Label:      label,
-			},
-		})
+		// Note: Delta recording handled at state level via DeltaSync
 
 		log.WithFields(log.Fields{"NodeID": from, "To": to, "Label": label, "Version": newVersion}).Debug("Edge added")
 	} else {
@@ -1063,21 +1031,6 @@ func (c *TreeCRDT) edgeExists(node *NodeCRDT, to core.NodeID) bool {
 		}
 	}
 	return false
-}
-
-func cloneNodeWithoutEdges(n *NodeCRDT, crdt *TreeCRDT) *NodeCRDT {
-	nodeType := Literal
-	if n.IsArray {
-		nodeType = Array
-	} else if n.IsMap {
-		nodeType = Map
-	}
-	cloned := newNodeFromID(n.ID, nodeType, crdt)
-	cloned.IsLiteral = n.IsLiteral
-	cloned.LiteralValue = n.LiteralValue
-	cloned.Clock = vectorclock.CopyClock(n.Clock)
-	cloned.Owner = n.Owner
-	return cloned
 }
 
 func (c *TreeCRDT) normalize() {

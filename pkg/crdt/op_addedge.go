@@ -21,20 +21,7 @@ func (c *TreeCRDT) AddEdgeMutation(from, to core.NodeID, label string, clientID 
 		return Mutation{}, fmt.Errorf("AddEdge failed: %w", err)
 	}
 
-	// Record delta operation if a recorder is set
-	if c.deltaRecorder != nil {
-		fromNode := c.Nodes[from]
-		c.recordOperation(DeltaOperation{
-			Type:     OPAddEdge,
-			ClientID: clientID,
-			Clock:    fromNode.Clock,
-			EdgeInfo: &EdgeInfo{
-				FromNodeID: from,
-				ToNodeID:   to,
-				Label:      label,
-			},
-		})
-	}
+	// Note: Delta recording is now handled at the state level via DeltaSync
 
 	return mut, nil
 }

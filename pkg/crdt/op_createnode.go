@@ -22,21 +22,7 @@ func (c *TreeCRDT) CreateNodeMutation(name string, nodeType core.NodeType, paren
 		return Mutation{}, nil, fmt.Errorf("CreateNode failed: %w", err)
 	}
 
-	// Record delta operation if a recorder is set
-	if c.deltaRecorder != nil {
-		c.recordOperation(DeltaOperation{
-			Type:     OPCreateNode,
-			NodeID:   node.ID,
-			ParentID: parentID,
-			ClientID: clientID,
-			Clock:    node.Clock,
-			Metadata: map[string]interface{}{
-				"is_map":     node.IsMap,
-				"is_array":   node.IsArray,
-				"is_literal": node.IsLiteral,
-			},
-		})
-	}
+	// Note: Delta recording is now handled at the state level via DeltaSync
 
 	return mut, node, nil
 }
