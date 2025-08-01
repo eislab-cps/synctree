@@ -1321,3 +1321,15 @@ func (c *TreeCRDT) ApplyMutation(mut Mutation) error {
 
 	return nil
 }
+
+// GetVectorClock returns the current vector clock of the tree
+func (c *TreeCRDT) GetVectorClock() vectorclock.VectorClock {
+	clock := make(vectorclock.VectorClock)
+
+	// Merge clocks from all nodes
+	for _, node := range c.Nodes {
+		clock = vectorclock.MergeClocks(clock, node.Clock)
+	}
+
+	return clock
+}

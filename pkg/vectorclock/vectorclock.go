@@ -73,6 +73,12 @@ func ClocksEqual(a, b VectorClock) bool {
 	return true
 }
 
+// DominatesOrEqual checks if clock a dominates or equals clock b
+func DominatesOrEqual(a, b VectorClock) bool {
+	cmp := compareClocks(a, b)
+	return cmp == ClockDominates || cmp == ClockEqual
+}
+
 func MergeClocks(a, b VectorClock) VectorClock {
 	merged := make(VectorClock)
 	for k, v := range a {

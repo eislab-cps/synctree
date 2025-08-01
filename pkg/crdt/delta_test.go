@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/eislab-cps/synctree/pkg/core"
+	"github.com/eislab-cps/synctree/pkg/random"
+	"github.com/eislab-cps/synctree/pkg/utils"
 	"github.com/eislab-cps/synctree/pkg/vectorclock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1502,4 +1504,121 @@ func TestDeltaHistoryLimit(t *testing.T) {
 	assert.Equal(t, core.NodeID("node-2"), deltaSync.history[0].NodeID)
 	assert.Equal(t, core.NodeID("node-3"), deltaSync.history[1].NodeID)
 	assert.Equal(t, core.NodeID("node-4"), deltaSync.history[2].NodeID)
+}
+
+func TestDeltaStateWithComplexJSON(t *testing.T) {
+	clientA := core.ClientID(random.GenerateRandomID())
+	clientB := core.ClientID(random.GenerateRandomID())
+
+	json1 := []byte(`{
+		"1": [
+			{
+				"2": "3"
+			},
+			{
+				"4": [
+					{
+						"5": "6"
+					}
+				]
+			}
+		]
+	}`)
+
+	expectedJSON := []byte(`[
+		{
+			"1": [
+				{
+					"2": "3"
+				},
+				{
+					"4": [
+						{
+							"5": "6"
+						}
+					]
+				}
+			]
+		},
+		{
+			"1": [
+				{
+					"2": "3"
+				},
+				{
+					"4": [
+						{
+							"5": "6"
+						}
+					]
+				}
+			]
+		}
+	]`)
+
+	// The order depends on how Node IDs are generated
+	expectedJSONAlt := []byte(`[
+		{
+			"1": [
+				{
+					"2": "3"
+				},
+				{
+					"4": [
+						{
+							"5": "6"
+						}
+					]
+				}
+			]
+		},
+		{
+			"1": [
+				{
+					"2": "3"
+				},
+				{
+					"4": [
+						{
+							"5": "6"
+						}
+					]
+				}
+			]
+		}
+	]`)
+
+	// Replicate the original test but using delta-state synchronization
+	
+	// Create first tree and import JSON
+	treeA := NewTreeCRDT()
+	deltaSyncA := NewDeltaSync(treeA)
+	_, err := treeA.ImportJSON(json1, clientA)
+	assert.NoError(t, err)
+
+	// Create second tree and import the same JSON (like the original test)
+	treeB := NewTreeCRDT()
+	deltaSyncB := NewDeltaSync(treeB)
+	_, err = treeB.ImportJSON(json1, clientB)
+	assert.NoError(t, err)
+
+	// Now instead of merging directly, use delta synchronization
+	// Generate delta from treeB and apply to treeA
+	emptyClock := make(vectorclock.VectorClock)
+	deltaFromB := deltaSyncB.GenerateDeltaState(emptyClock)
+
+	err = deltaSyncA.ApplyDeltaState(deltaFromB)
+	assert.NoError(t, err, "Applying delta from B to A should not return an error")
+
+	// Verify the final result matches the expected JSON structure
+	finalJSON, err := treeA.ExportJSON()
+	assert.NoError(t, err)
+
+	exportedEqualsExpected := utils.IsJSONEqual(t, finalJSON, expectedJSON) || utils.IsJSONEqual(t, finalJSON, expectedJSONAlt)
+	assert.True(t, exportedEqualsExpected, "Final JSON should match expected JSON after delta synchronization")
+
+	if !exportedEqualsExpected {
+		t.Logf("Actual exported JSON: %s", string(finalJSON))
+		utils.CompareJSON(t, expectedJSON, finalJSON)
+	}
 }

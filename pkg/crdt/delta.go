@@ -81,7 +81,7 @@ func (ds *DeltaSync) GenerateDeltaState(fromClock vectorclock.VectorClock) *Tree
 	// Extract nodes that have been modified after fromClock
 	for nodeID, node := range ds.tree.Nodes {
 		// Check if this node has changes newer than fromClock
-		if !clockDominatesOrEqual(fromClock, node.Clock) {
+		if !vectorclock.DominatesOrEqual(fromClock, node.Clock) {
 			// Clone the node into the delta
 			deltaNode := &NodeCRDT{
 				tree:         delta,
@@ -132,7 +132,7 @@ func (ds *DeltaSync) GenerateDelta(fromClock vectorclock.VectorClock, clientID c
 
 	// Find all operations that happened after fromClock
 	for _, op := range ds.history {
-		if !clockDominatesOrEqual(fromClock, op.Clock) {
+		if !vectorclock.DominatesOrEqual(fromClock, op.Clock) {
 			operations = append(operations, op)
 		}
 	}
@@ -294,8 +294,8 @@ func (ds *DeltaSync) applyUpdateNode(op DeltaOperation) error {
 	// Update node properties based on metadata
 	if metadata := op.Metadata; metadata != nil {
 		// Update clock if newer
-		if !clockDominatesOrEqual(node.Clock, op.Clock) {
-			node.Clock = mergeClock(node.Clock, op.Clock)
+		if !vectorclock.DominatesOrEqual(node.Clock, op.Clock) {
+			node.Clock = vectorclock.MergeClocks(node.Clock, op.Clock)
 		}
 	}
 
@@ -309,7 +309,7 @@ func (ds *DeltaSync) applyDeleteNode(op DeltaOperation) error {
 	}
 
 	node.IsDeleted = true
-	node.Clock = mergeClock(node.Clock, op.Clock)
+	node.Clock = vectorclock.MergeClocks(node.Clock, op.Clock)
 	return nil
 }
 
@@ -332,7 +332,7 @@ func (ds *DeltaSync) applyAddEdge(op DeltaOperation) error {
 
 	// Add edge to node
 	fromNode.Edges = append(fromNode.Edges, edge)
-	fromNode.Clock = mergeClock(fromNode.Clock, op.Clock)
+	fromNode.Clock = vectorclock.MergeClocks(fromNode.Clock, op.Clock)
 
 	return nil
 }
@@ -356,7 +356,7 @@ func (ds *DeltaSync) applyRemoveEdge(op DeltaOperation) error {
 	}
 
 	fromNode.Edges = newEdges
-	fromNode.Clock = mergeClock(fromNode.Clock, op.Clock)
+	fromNode.Clock = vectorclock.MergeClocks(fromNode.Clock, op.Clock)
 
 	return nil
 }
@@ -393,57 +393,10 @@ func (ds *DeltaSync) applyUpdateClock(op DeltaOperation) error {
 		return fmt.Errorf("node %s not found", op.NodeID)
 	}
 
-	node.Clock = mergeClock(node.Clock, op.Clock)
+	node.Clock = vectorclock.MergeClocks(node.Clock, op.Clock)
 	return nil
 }
 
-// GetVectorClock returns the current vector clock of the tree
-func (t *TreeCRDT) GetVectorClock() vectorclock.VectorClock {
-	clock := make(vectorclock.VectorClock)
-
-	// Merge clocks from all nodes
-	for _, node := range t.Nodes {
-		clock = mergeClock(clock, node.Clock)
-	}
-
-	return clock
-}
-
-// Helper functions for clock operations
-func clockDominatesOrEqual(a, b vectorclock.VectorClock) bool {
-	// Check if a dominates or equals b
-	if vectorclock.ClocksEqual(a, b) {
-		return true
-	}
-	
-	// Check if a dominates b (all elements in a >= corresponding elements in b)
-	keys := make(map[core.ClientID]struct{})
-	for k := range a {
-		keys[k] = struct{}{}
-	}
-	for k := range b {
-		keys[k] = struct{}{}
-	}
-	
-	for k := range keys {
-		av, aok := a[k]
-		bv, bok := b[k]
-		if !aok {
-			av = 0
-		}
-		if !bok {
-			bv = 0
-		}
-		if av < bv {
-			return false // a does not dominate b
-		}
-	}
-	return true
-}
-
-func mergeClock(a, b vectorclock.VectorClock) vectorclock.VectorClock {
-	return vectorclock.MergeClocks(a, b)
-}
 
 // Serialization methods
 func (d *Delta) ToJSON() ([]byte, error) {
