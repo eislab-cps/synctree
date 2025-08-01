@@ -73,7 +73,60 @@ func (ds *DeltaSync) RecordOperation(op DeltaOperation) {
 	}
 }
 
-// GenerateDelta creates a delta from a given clock state
+// GenerateDeltaState creates a delta by extracting state newer than fromClock
+func (ds *DeltaSync) GenerateDeltaState(fromClock vectorclock.VectorClock) *TreeCRDT {
+	// Create a new TreeCRDT to hold the delta state
+	delta := NewTreeCRDT()
+	
+	// Extract nodes that have been modified after fromClock
+	for nodeID, node := range ds.tree.Nodes {
+		// Check if this node has changes newer than fromClock
+		if !clockDominatesOrEqual(fromClock, node.Clock) {
+			// Clone the node into the delta
+			deltaNode := &NodeCRDT{
+				tree:         delta,
+				ID:           node.ID,
+				ParentID:     node.ParentID,
+				IsLiteral:    node.IsLiteral,
+				IsMap:        node.IsMap,
+				IsArray:      node.IsArray,
+				IsPromoted:   node.IsPromoted,
+				LiteralValue: node.LiteralValue,
+				Clock:        vectorclock.CopyClock(node.Clock),
+				Owner:        node.Owner,
+				IsDeleted:    node.IsDeleted,
+				IsRoot:       node.IsRoot,
+				Nonce:        node.Nonce,
+				Signature:    node.Signature,
+				Edges:        make([]*EdgeCRDT, len(node.Edges)),
+			}
+			
+			// Clone edges
+			for i, edge := range node.Edges {
+				// Deep copy LSEQPosition slice
+				lseqPos := make([]int, len(edge.LSEQPosition))
+				copy(lseqPos, edge.LSEQPosition)
+				
+				deltaNode.Edges[i] = &EdgeCRDT{
+					From:         edge.From,
+					To:           edge.To,
+					Label:        edge.Label,
+					LSEQPosition: lseqPos,
+				}
+			}
+			
+			delta.Nodes[nodeID] = deltaNode
+		}
+	}
+	
+	// Ensure parent nodes are included for tree consistency
+	ds.includeRequiredParents(delta, fromClock)
+	
+	return delta
+}
+
+// GenerateDelta creates a delta from a given clock state (legacy operation-based API)
+// DEPRECATED: Use GenerateDeltaState for true delta-state functionality
 func (ds *DeltaSync) GenerateDelta(fromClock vectorclock.VectorClock, clientID core.ClientID) *Delta {
 	operations := []DeltaOperation{}
 
@@ -95,7 +148,69 @@ func (ds *DeltaSync) GenerateDelta(fromClock vectorclock.VectorClock, clientID c
 	}
 }
 
-// ApplyDelta applies a delta to the current tree
+// includeRequiredParents ensures all necessary parent nodes are included in delta
+func (ds *DeltaSync) includeRequiredParents(delta *TreeCRDT, fromClock vectorclock.VectorClock) {
+	// Keep adding missing parents until tree is consistent
+	changed := true
+	for changed {
+		changed = false
+		
+		for _, node := range delta.Nodes {
+			if node.ParentID != "" {
+				// Check if parent exists in delta
+				if _, exists := delta.Nodes[node.ParentID]; !exists {
+					// Check if parent exists in source tree
+					if parent, exists := ds.tree.Nodes[node.ParentID]; exists {
+						// Clone parent node into delta
+						deltaParent := &NodeCRDT{
+							tree:         delta,
+							ID:           parent.ID,
+							ParentID:     parent.ParentID,
+							IsLiteral:    parent.IsLiteral,
+							IsMap:        parent.IsMap,
+							IsArray:      parent.IsArray,
+							IsPromoted:   parent.IsPromoted,
+							LiteralValue: parent.LiteralValue,
+							Clock:        vectorclock.CopyClock(parent.Clock),
+							Owner:        parent.Owner,
+							IsDeleted:    parent.IsDeleted,
+							IsRoot:       parent.IsRoot,
+							Nonce:        parent.Nonce,
+							Signature:    parent.Signature,
+							Edges:        make([]*EdgeCRDT, len(parent.Edges)),
+						}
+						
+						// Clone edges
+						for i, edge := range parent.Edges {
+							// Deep copy LSEQPosition slice
+							lseqPos := make([]int, len(edge.LSEQPosition))
+							copy(lseqPos, edge.LSEQPosition)
+							
+							deltaParent.Edges[i] = &EdgeCRDT{
+								From:         edge.From,
+								To:           edge.To,
+								Label:        edge.Label,
+								LSEQPosition: lseqPos,
+							}
+						}
+						
+						delta.Nodes[parent.ID] = deltaParent
+						changed = true
+					}
+				}
+			}
+		}
+	}
+}
+
+// ApplyDeltaState applies a delta state to the current tree using merge
+func (ds *DeltaSync) ApplyDeltaState(deltaState *TreeCRDT) error {
+	// Use the existing, battle-tested merge logic
+	return ds.tree.Merge(deltaState)
+}
+
+// ApplyDelta applies a delta to the current tree (legacy operation-based API)
+// DEPRECATED: Use ApplyDeltaState for true delta-state functionality
 func (ds *DeltaSync) ApplyDelta(delta *Delta) error {
 	// Apply each operation in order
 	for _, op := range delta.Operations {
