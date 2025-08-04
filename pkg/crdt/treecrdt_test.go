@@ -1,6 +1,7 @@
 package crdt
 
 import (
+	"encoding/json"
 	"fmt"
 	"testing"
 
@@ -1049,4 +1050,495 @@ func TestTreeCRDTMarkDeletedLitteral(t *testing.T) {
 
 	expectedJSON := []byte(`null`)
 	utils.CompareJSON(t, expectedJSON, exportedJSON)
+}
+
+// TestTreeCRDTNetworkPartitionArrayPromotion tests the behavior of TreeCRDT during a network partition
+// where concurrent changes on multiple nodes should trigger array promotion.
+//
+// Scenario:
+// 1. Three clients (A, B, C) start with identical state: root -> sharedNode
+// 2. Network partition occurs, splitting the clients
+// 3. During partition:
+//    - Client A: adds child1 to sharedNode
+//    - Client B: adds child2 to sharedNode
+//    - Client C: adds child3 to sharedNode
+// 4. Network heals and clients converge
+// 5. Expected: sharedNode should be promoted to an array containing [child1, child2, child3]
+//    (sorted by NodeID for deterministic ordering)
+func TestTreeCRDTNetworkPartitionArrayPromotion(t *testing.T) {
+	// Initialize three clients
+	clientA := core.ClientID("clientA")
+	clientB := core.ClientID("clientB")
+	clientC := core.ClientID("clientC")
+
+	// Step 1: Create initial shared state
+	// All clients start with: root -> sharedNode (literal)
+	// This sets up a scenario where root has a single child
+	initialJSON := []byte(`"shared-value"`)
+
+	// Client A's CRDT
+	crdtA := NewTreeCRDT()
+	_, err := crdtA.ImportJSON(initialJSON, clientA)
+	assert.NoError(t, err, "Client A: ImportJSON should not return an error")
+
+	// Clone to create Client B's CRDT (simulating initial sync)
+	crdtB, err := crdtA.Clone()
+	assert.NoError(t, err, "Clone for Client B should not return an error")
+
+	// Clone to create Client C's CRDT (simulating initial sync)
+	crdtC, err := crdtA.Clone()
+	assert.NoError(t, err, "Clone for Client C should not return an error")
+
+	// Document initial state
+	rootNodeA := crdtA.Root
+	assert.Equal(t, 1, len(rootNodeA.Edges), "Root should have one edge")
+	sharedNodeID := rootNodeA.Edges[0].To
+	sharedNode, ok := crdtA.GetNode(sharedNodeID)
+	assert.True(t, ok, "Shared node should exist")
+	assert.True(t, sharedNode.IsLiteral, "Shared node should be a literal initially")
+	t.Logf("Initial state (all clients): root -> sharedNode[%s] (literal: %v)", sharedNodeID, sharedNode.LiteralValue)
+
+	// Step 2: Simulate network partition - each client adds a new child to root
+	// This will create a conflict at the root level
+	// Client A adds child1 to root
+	child1 := crdtA.CreateNode("child1", Literal, clientA)
+	child1.SetLiteral("value1", clientA)
+	err = crdtA.AddEdge(crdtA.Root.ID, child1.ID, "", clientA)
+	assert.NoError(t, err, "Client A: AddEdge should not return an error")
+
+	// Document Client A's local state
+	t.Logf("Client A after partition: root -> sharedNode + child1[%s]", child1.ID)
+
+	// Client B adds child2 to root
+	child2 := crdtB.CreateNode("child2", Literal, clientB)
+	child2.SetLiteral("value2", clientB)
+	err = crdtB.AddEdge(crdtB.Root.ID, child2.ID, "", clientB)
+	assert.NoError(t, err, "Client B: AddEdge should not return an error")
+
+	// Document Client B's local state
+	t.Logf("Client B after partition: root -> sharedNode + child2[%s]", child2.ID)
+
+	// Client C adds child3 to root
+	child3 := crdtC.CreateNode("child3", Literal, clientC)
+	child3.SetLiteral("value3", clientC)
+	err = crdtC.AddEdge(crdtC.Root.ID, child3.ID, "", clientC)
+	assert.NoError(t, err, "Client C: AddEdge should not return an error")
+
+	// Document Client C's local state
+	t.Logf("Client C after partition: root -> sharedNode + child3[%s]", child3.ID)
+
+	// Verify each client's local state before convergence
+	assert.Equal(t, 2, len(crdtA.Root.Edges), "Client A: root should have 2 edges")
+	assert.Equal(t, 2, len(crdtB.Root.Edges), "Client B: root should have 2 edges")
+	assert.Equal(t, 2, len(crdtC.Root.Edges), "Client C: root should have 2 edges")
+
+	// Step 3: Network heals - simulate convergence through merges
+	// First, A and B converge
+	t.Log("\nPhase 1: Merging A and B")
+	err = crdtA.Merge(crdtB)
+	assert.NoError(t, err, "Merge A<-B should not return an error")
+	err = crdtB.Merge(crdtA)
+	assert.NoError(t, err, "Merge B<-A should not return an error")
+
+	// Check the state after A-B merge
+	rootAfterAB := crdtA.Root
+	t.Logf("After A-B merge: root has %d edges", len(rootAfterAB.Edges))
+	
+	// Check if array promotion is starting to happen
+	if len(rootAfterAB.Edges) == 1 {
+		// Check if it's an array
+		possibleArray, _ := crdtA.GetNode(rootAfterAB.Edges[0].To)
+		t.Logf("Single child after A-B merge: IsArray=%v, IsPromoted=%v, edges=%d",
+			possibleArray.IsArray, possibleArray.IsPromoted, len(possibleArray.Edges))
+	}
+
+	// Then C converges with the A-B group
+	t.Log("\nPhase 2: Merging C with A-B group")
+	err = crdtA.Merge(crdtC)
+	assert.NoError(t, err, "Merge A<-C should not return an error")
+	err = crdtC.Merge(crdtA)
+	assert.NoError(t, err, "Merge C<-A should not return an error")
+	err = crdtB.Merge(crdtC)
+	assert.NoError(t, err, "Merge B<-C should not return an error")
+
+	// Step 4: Verify final state
+	// Root should have been promoted to contain an array
+	rootFinal := crdtA.Root
+	t.Logf("\nFinal structure: root has %d edges", len(rootFinal.Edges))
+	
+	if len(rootFinal.Edges) == 1 {
+		// Check if the single child is a promoted array
+		arrayNodeID := rootFinal.Edges[0].To
+		arrayNode, ok := crdtA.GetNode(arrayNodeID)
+		assert.True(t, ok, "Array node should exist")
+		
+		if arrayNode.IsArray && arrayNode.IsPromoted {
+			t.Logf("Array promotion successful: root -> array[%s] (IsPromoted=%v)", arrayNodeID, arrayNode.IsPromoted)
+			
+			// The array should contain all four nodes (original shared + 3 new)
+			t.Logf("Array contains %d children", len(arrayNode.Edges))
+			
+			// Collect child values
+			childValues := make([]string, 0)
+			for i, edge := range arrayNode.Edges {
+				child, ok := crdtA.GetNode(edge.To)
+				assert.True(t, ok, "Child node should exist")
+				if child.IsLiteral {
+					childValues = append(childValues, fmt.Sprintf("%v", child.LiteralValue))
+					t.Logf("  [%d] -> %s (value: %v)", i, edge.To, child.LiteralValue)
+				}
+			}
+			
+			// Verify expected values are present
+			assert.Contains(t, childValues, "shared-value", "Original shared value should be in array")
+			assert.Contains(t, childValues, "value1", "value1 should be in the array")
+			assert.Contains(t, childValues, "value2", "value2 should be in the array")
+			assert.Contains(t, childValues, "value3", "value3 should be in the array")
+		}
+	} else {
+		// Direct children without promotion
+		t.Logf("No array promotion: root has %d direct children", len(rootFinal.Edges))
+		for _, edge := range rootFinal.Edges {
+			child, _ := crdtA.GetNode(edge.To)
+			t.Logf("  -> %s (IsLiteral: %v, value: %v)", edge.To, child.IsLiteral, child.LiteralValue)
+		}
+	}
+
+	// Step 5: Verify convergence - all CRDTs should have identical state
+	jsonA, err := crdtA.ExportJSON()
+	assert.NoError(t, err, "Export JSON from A should not error")
+	jsonB, err := crdtB.ExportJSON()
+	assert.NoError(t, err, "Export JSON from B should not error")
+	jsonC, err := crdtC.ExportJSON()
+	assert.NoError(t, err, "Export JSON from C should not error")
+
+	// All clients should have converged to the same state
+	utils.CompareJSON(t, jsonA, jsonB)
+	utils.CompareJSON(t, jsonA, jsonC)
+
+	// Verify the trees are equal
+	assert.True(t, crdtA.Equal(crdtB), "CRDT A and B should be equal after convergence")
+	assert.True(t, crdtA.Equal(crdtC), "CRDT A and C should be equal after convergence")
+	assert.True(t, crdtB.Equal(crdtC), "CRDT B and C should be equal after convergence")
+
+	t.Log("\nAll clients have successfully converged to the same state with array promotion")
+}
+
+// TestTreeCRDTBasicArrayPromotion tests the basic array promotion behavior
+// when a node with one child receives a second child during merge
+func TestTreeCRDTBasicArrayPromotion(t *testing.T) {
+	clientA := core.ClientID("clientA")
+	clientB := core.ClientID("clientB")
+
+	// Step 1: Client A creates initial structure: root node with single literal child
+	// Array promotion only triggers for nodes that are NOT already Map or Array
+	crdtA := NewTreeCRDT()
+	// Directly attach a literal to root (root itself will get the second child)
+	child1 := crdtA.CreateAttachedNode("child1", Literal, crdtA.Root.ID, clientA)
+	child1.SetLiteral("value1", clientA)
+
+	// Document initial state
+	t.Logf("Client A initial: root -> child1[%s]", child1.ID)
+	assert.Equal(t, 1, len(crdtA.Root.Edges), "Root should have 1 edge")
+
+	// Step 2: Clone to simulate Client B before divergence
+	crdtB, err := crdtA.Clone()
+	assert.NoError(t, err, "Clone should not return an error")
+
+	// Step 3: Client B adds a second child to root
+	child2 := crdtB.CreateAttachedNode("child2", Literal, crdtB.Root.ID, clientB)
+	child2.SetLiteral("value2", clientB)
+
+	// Document Client B's state
+	t.Logf("Client B after change: root -> child1[%s], child2[%s]", child1.ID, child2.ID)
+
+	// Before merge, verify states
+	assert.Equal(t, 1, len(crdtA.Root.Edges), "Client A: root should have 1 edge before merge")
+	assert.Equal(t, 2, len(crdtB.Root.Edges), "Client B: root should have 2 edges before merge")
+
+	// Step 4: Merge B into A - this should trigger array promotion
+	t.Log("\nMerging B into A...")
+	err = crdtA.Merge(crdtB)
+	assert.NoError(t, err, "Merge should not return an error")
+
+	// Step 5: Check the result
+	rootAfterMerge := crdtA.Root
+	t.Logf("\nAfter merge: root has %d edges, IsRoot=%v, IsArray=%v, IsMap=%v", 
+		len(rootAfterMerge.Edges), rootAfterMerge.IsRoot, rootAfterMerge.IsArray, rootAfterMerge.IsMap)
+
+	// Check if array promotion occurred
+	if len(rootAfterMerge.Edges) == 1 {
+		// Promotion happened - root now points to an array
+		arrayNodeID := rootAfterMerge.Edges[0].To
+		arrayNode, ok := crdtA.GetNode(arrayNodeID)
+		assert.True(t, ok, "Array node should exist")
+		assert.True(t, arrayNode.IsArray, "Promoted node should be an array")
+		assert.True(t, arrayNode.IsPromoted, "Array should be marked as promoted")
+		assert.Equal(t, 2, len(arrayNode.Edges), "Array should have 2 children")
+
+		t.Logf("Array promotion occurred: root -> array[%s] (IsPromoted=%v) -> [child1, child2]", 
+			arrayNodeID, arrayNode.IsPromoted)
+		
+		// Log children of the array
+		for i, edge := range arrayNode.Edges {
+			child, _ := crdtA.GetNode(edge.To)
+			t.Logf("  [%d] -> %s (value: %v)", i, edge.To, child.LiteralValue)
+		}
+	} else {
+		// No promotion - children attached directly
+		t.Logf("No array promotion: root has %d direct children", len(rootAfterMerge.Edges))
+		for _, edge := range rootAfterMerge.Edges {
+			child, _ := crdtA.GetNode(edge.To)
+			t.Logf("  -> %s (value: %v)", edge.To, child.LiteralValue)
+		}
+	}
+
+	// Export JSON to see final structure
+	jsonBytes, err := crdtA.ExportJSON()
+	assert.NoError(t, err, "ExportJSON should not return an error")
+	t.Logf("\nFinal JSON: %s", string(jsonBytes))
+}
+
+// TestTreeCRDTArrayPromotionNonMapParent tests array promotion specifically
+// for nodes that are neither Map nor Array (the promotion condition)
+func TestTreeCRDTArrayPromotionNonMapParent(t *testing.T) {
+	clientA := core.ClientID("clientA")
+	clientB := core.ClientID("clientB")
+
+	// Create a more complex initial structure to test promotion
+	// Structure: {"wrapper": "single-value"}
+	initialJSON := []byte(`{"wrapper": "single-value"}`)
+
+	crdtA := NewTreeCRDT()
+	_, err := crdtA.ImportJSON(initialJSON, clientA)
+	assert.NoError(t, err)
+
+	// Clone for Client B
+	crdtB, err := crdtA.Clone()
+	assert.NoError(t, err)
+
+	// The structure has root -> map -> literal("single-value")
+	// Let's find the map node
+	rootNode := crdtA.Root
+	assert.Equal(t, 1, len(rootNode.Edges), "Root should have 1 edge")
+	mapNodeID := rootNode.Edges[0].To
+	mapNodeA, ok := crdtA.GetNode(mapNodeID)
+	assert.True(t, ok, "Map node should exist")
+	assert.True(t, mapNodeA.IsMap, "First child of root should be a map")
+	
+	// Find the corresponding node in B
+	mapNodeB, ok := crdtB.GetNode(mapNodeID)
+	assert.True(t, ok, "Map node should exist in B")
+	
+	// Add a new key-value to the map in client B
+	// This should NOT trigger promotion because the node is already a Map
+	_, _, err = mapNodeB.SetKeyValue("newKey", "new-value", clientB)
+	assert.NoError(t, err)
+
+	// Merge
+	err = crdtA.Merge(crdtB)
+	assert.NoError(t, err)
+
+	// Check - no promotion should occur because the node is already a Map
+	mapNodeAfterMerge, _ := crdtA.GetNode(mapNodeID)
+	assert.Equal(t, 2, len(mapNodeAfterMerge.Edges), "Map should have 2 edges after merge")
+	assert.True(t, mapNodeAfterMerge.IsMap, "Node should still be a map")
+
+	jsonBytes, err := crdtA.ExportJSON()
+	assert.NoError(t, err)
+	t.Logf("Final JSON (no promotion expected): %s", string(jsonBytes))
+}
+
+// TestTreeCRDTArrayPromotionWithNestedObjects tests array promotion
+// when the conflicting children are complex objects rather than literals
+func TestTreeCRDTArrayPromotionWithNestedObjects(t *testing.T) {
+	clientA := core.ClientID("clientA")
+	clientB := core.ClientID("clientB")
+
+	// Initial structure: {"data": {"item": {"name": "original"}}}
+	initialJSON := []byte(`{"data": {"item": {"name": "original"}}}`)
+
+	// Client A's CRDT
+	crdtA := NewTreeCRDT()
+	_, err := crdtA.ImportJSON(initialJSON, clientA)
+	assert.NoError(t, err, "Client A: ImportJSON should not return an error")
+
+	// Clone for Client B
+	crdtB, err := crdtA.Clone()
+	assert.NoError(t, err, "Clone should not return an error")
+
+	// Find the "data" node in both CRDTs
+	dataNodeA, err := crdtA.GetNodeByPath("/data")
+	assert.NoError(t, err, "Should find /data in CRDT A")
+	dataNodeB, err := crdtB.GetNodeByPath("/data")
+	assert.NoError(t, err, "Should find /data in CRDT B")
+
+	// Document initial state
+	t.Log("Initial state: data -> item -> {name: 'original'}")
+	assert.Equal(t, 1, len(dataNodeA.Edges), "data node should have 1 child initially")
+
+	// Client A adds a new key-value to the "data" map
+	// Use SetKeyValue which handles the map properly
+	_, _, err = dataNodeA.SetKeyValue("newItemA", "valueA", clientA)
+	assert.NoError(t, err)
+
+	// Client B adds a different key-value to the "data" map
+	_, _, err = dataNodeB.SetKeyValue("newItemB", "valueB", clientB)
+	assert.NoError(t, err)
+
+	// Document states before merge
+	t.Log("\nBefore merge:")
+	t.Log("Client A: data -> {item: {...}, newItemA: 'valueA'}")
+	t.Log("Client B: data -> {item: {...}, newItemB: 'valueB'}")
+
+	// Merge
+	err = crdtA.Merge(crdtB)
+	assert.NoError(t, err, "Merge A<-B should not return an error")
+
+	// Check the result
+	dataNodeAfterMerge, err := crdtA.GetNodeByPath("/data")
+	assert.NoError(t, err, "Should find /data after merge")
+
+	t.Logf("\nAfter merge: data node has %d edges", len(dataNodeAfterMerge.Edges))
+
+	// Export and log final structure
+	jsonBytes, err := crdtA.ExportJSON()
+	assert.NoError(t, err)
+	t.Logf("Final JSON: %s", string(jsonBytes))
+
+	// Verify all items are present by parsing the JSON
+	var result map[string]interface{}
+	err = json.Unmarshal(jsonBytes, &result)
+	assert.NoError(t, err)
+	dataMap := result["data"].(map[string]interface{})
+	assert.Contains(t, dataMap, "item", "Original item should still exist")
+	assert.Contains(t, dataMap, "newItemA", "newItemA should exist")
+	assert.Contains(t, dataMap, "newItemB", "newItemB should exist")
+}
+
+// TestTreeCRDTArrayPromotionThenChildEdit tests what happens when
+// children of a promoted array are edited after promotion
+func TestTreeCRDTArrayPromotionThenChildEdit(t *testing.T) {
+	clientA := core.ClientID("clientA")
+	clientB := core.ClientID("clientB")
+	clientC := core.ClientID("clientC")
+
+	// Step 1: Set up initial state that will lead to array promotion
+	crdtA := NewTreeCRDT()
+	parent := crdtA.CreateAttachedNode("parent", Map, crdtA.Root.ID, clientA)
+	child1 := crdtA.CreateAttachedNode("child1", Map, parent.ID, clientA)
+	_, _, err := child1.SetKeyValue("data", "initial", clientA)
+	assert.NoError(t, err)
+
+	// Clone for clients B and C
+	crdtB, err := crdtA.Clone()
+	assert.NoError(t, err)
+	crdtC, err := crdtA.Clone()
+	assert.NoError(t, err)
+
+	// Step 2: Client B adds a second child (triggers promotion)
+	parentB, _ := crdtB.GetNode(parent.ID)
+	child2 := crdtB.CreateAttachedNode("child2", Map, parentB.ID, clientB)
+	_, _, err = child2.SetKeyValue("data", "initial", clientB)
+	assert.NoError(t, err)
+
+	// Merge to trigger promotion
+	err = crdtA.Merge(crdtB)
+	assert.NoError(t, err)
+	err = crdtB.Merge(crdtA)
+	assert.NoError(t, err)
+
+	// Document state after promotion
+	parentAfterPromotion, _ := crdtA.GetNode(parent.ID)
+	t.Logf("After promotion: parent has %d edges", len(parentAfterPromotion.Edges))
+
+	// Step 3: Client C (who hasn't seen the promotion yet) edits child1
+	child1C, ok := crdtC.GetNode(child1.ID)
+	assert.True(t, ok, "child1 should exist in CRDT C")
+	_, _, err = child1C.SetKeyValue("data", "edited by C", clientC)
+	assert.NoError(t, err)
+
+	// Step 4: Merge C's edit into the promoted structure
+	t.Log("\nMerging C's edits into promoted structure...")
+	err = crdtA.Merge(crdtC)
+	assert.NoError(t, err)
+
+	// Step 5: Verify the edit propagated correctly
+	child1AfterMerge, ok := crdtA.GetNode(child1.ID)
+	assert.True(t, ok, "child1 should still exist after merge")
+
+	valueNode, found, err := child1AfterMerge.GetNodeForKey("data")
+	assert.NoError(t, err)
+	assert.True(t, found, "data key should exist")
+	value, err := valueNode.GetLiteral()
+	assert.NoError(t, err)
+	assert.Equal(t, "edited by C", value, "Edit from client C should be applied")
+
+	// Export final state
+	json, err := crdtA.ExportJSON()
+	assert.NoError(t, err)
+	t.Logf("\nFinal JSON after child edit: %s", string(json))
+}
+
+// TestTreeCRDTMultipleLevelArrayPromotion tests array promotion
+// at multiple levels of nesting
+func TestTreeCRDTMultipleLevelArrayPromotion(t *testing.T) {
+	clientA := core.ClientID("clientA")
+	clientB := core.ClientID("clientB")
+
+	// Initial structure: {"level1": {"level2": {"item": "value"}}}
+	initialJSON := []byte(`{"level1": {"level2": {"item": "value"}}}`)
+
+	crdtA := NewTreeCRDT()
+	_, err := crdtA.ImportJSON(initialJSON, clientA)
+	assert.NoError(t, err)
+
+	crdtB, err := crdtA.Clone()
+	assert.NoError(t, err)
+
+	// Client A adds a sibling to level2
+	level1A, err := crdtA.GetNodeByPath("/level1")
+	assert.NoError(t, err)
+	newLevel2A := crdtA.CreateAttachedNode("newLevel2A", Map, level1A.ID, clientA)
+	_, _, err = newLevel2A.SetKeyValue("data", "from A", clientA)
+	assert.NoError(t, err)
+
+	// Client B adds a different sibling to level2
+	level1B, err := crdtB.GetNodeByPath("/level1")
+	assert.NoError(t, err)
+	newLevel2B := crdtB.CreateAttachedNode("newLevel2B", Map, level1B.ID, clientB)
+	_, _, err = newLevel2B.SetKeyValue("data", "from B", clientB)
+	assert.NoError(t, err)
+
+	// Also, Client B adds something to the original level2
+	level2B, err := crdtB.GetNodeByPath("/level1/level2")
+	assert.NoError(t, err)
+	_, _, err = level2B.SetKeyValue("newItem", "added by B", clientB)
+	assert.NoError(t, err)
+
+	// Document states before merge
+	t.Log("Before merge:")
+	t.Log("Client A: level1 -> {level2: {...}, newLevel2A: {data: 'from A'}}")
+	t.Log("Client B: level1 -> {level2: {item: 'value', newItem: 'added by B'}, newLevel2B: {data: 'from B'}}")
+
+	// Merge
+	err = crdtA.Merge(crdtB)
+	assert.NoError(t, err)
+
+	// Check results
+	level1AfterMerge, err := crdtA.GetNodeByPath("/level1")
+	assert.NoError(t, err)
+	t.Logf("\nAfter merge: level1 has %d children", len(level1AfterMerge.Edges))
+
+	// Verify the nested edit also merged correctly
+	level2AfterMerge, err := crdtA.GetNodeByPath("/level1/level2")
+	if err == nil {
+		_, found, _ := level2AfterMerge.GetNodeForKey("newItem")
+		assert.True(t, found, "Nested edit from B should be preserved")
+	}
+
+	// Export final structure
+	json, err := crdtA.ExportJSON()
+	assert.NoError(t, err)
+	t.Logf("\nFinal JSON: %s", string(json))
 }
