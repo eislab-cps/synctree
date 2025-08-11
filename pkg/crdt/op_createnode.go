@@ -22,8 +22,6 @@ func (c *TreeCRDT) CreateNodeMutation(name string, nodeType core.NodeType, paren
 		return Mutation{}, nil, fmt.Errorf("CreateNode failed: %w", err)
 	}
 
-	// Note: Delta recording is now handled at the state level via DeltaSync
-
 	return mut, node, nil
 }
 

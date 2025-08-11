@@ -405,7 +405,7 @@ func (c *TreeCRDT) export() (interface{}, error) {
 	visited := make(map[core.NodeID]bool)
 
 	if len(c.Root.Edges) == 0 {
-		return nil, fmt.Errorf("Root node has no edges")
+		return nil, nil // Return nil for empty tree instead of error
 	}
 
 	if len(c.Root.Edges) == 1 {
@@ -413,20 +413,41 @@ func (c *TreeCRDT) export() (interface{}, error) {
 		return c.exportNodeOrdered(childID, visited)
 	}
 
-	isArray := false
+	// Check if any edges have empty labels
+	hasEmptyLabels := false
 	for _, e := range c.Root.Edges {
-		node := c.Nodes[e.To]
-		if node.IsArray {
-			isArray = true
+		if e.Label == "" {
+			hasEmptyLabels = true
 			break
 		}
 	}
 
-	if isArray {
+	// Check if any child is an array
+	hasArrayChild := false
+	for _, e := range c.Root.Edges {
+		node := c.Nodes[e.To]
+		if node.IsArray {
+			hasArrayChild = true
+			break
+		}
+	}
+
+	// If we have multiple children and any have empty labels, treat as array
+	// This ensures convergence - multiple unlabeled nodes don't overwrite each other
+	if (hasEmptyLabels && len(c.Root.Edges) > 1) || hasArrayChild {
+		// Export as array to preserve all children
 		sortEdgesByLSEQ(c.Root.Edges)
 
 		var arrayItems []interface{}
 		for _, e := range c.Root.Edges {
+			node, ok := c.Nodes[e.To]
+			if !ok {
+				continue
+			}
+			// Skip deleted nodes
+			if node.IsDeleted {
+				continue
+			}
 			child, err := c.exportNodeOrdered(e.To, visited)
 			if err != nil {
 				return nil, err
@@ -438,6 +459,14 @@ func (c *TreeCRDT) export() (interface{}, error) {
 		// Root points to a map — order by label (in edge order)
 		result := orderedmap.New()
 		for _, e := range c.Root.Edges {
+			node, ok := c.Nodes[e.To]
+			if !ok {
+				continue
+			}
+			// Skip deleted nodes
+			if node.IsDeleted {
+				continue
+			}
 			child, err := c.exportNodeOrdered(e.To, visited)
 			if err != nil {
 				return nil, err

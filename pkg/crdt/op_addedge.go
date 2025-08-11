@@ -21,8 +21,6 @@ func (c *TreeCRDT) AddEdgeMutation(from, to core.NodeID, label string, clientID 
 		return Mutation{}, fmt.Errorf("AddEdge failed: %w", err)
 	}
 
-	// Note: Delta recording is now handled at the state level via DeltaSync
-
 	return mut, nil
 }
 

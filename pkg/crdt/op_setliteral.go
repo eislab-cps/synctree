@@ -20,8 +20,6 @@ func (n *NodeCRDT) SetLiteral(value interface{}, clientID core.ClientID) (Mutati
 		return Mutation{}, fmt.Errorf("SetLiteral failed: %w", err)
 	}
 
-	// Note: Delta recording handled at state level via DeltaSync
-
 	return mut, nil
 }
 
@@ -107,8 +105,6 @@ func (n *NodeCRDT) setLiteralWithVersion(value interface{}, clientID core.Client
 		}).Error("SetLiteral failed")
 		return fmt.Errorf("SetLiteral failed: %w", err)
 	}
-
-	// Note: Delta recording handled at state level via DeltaSync
 
 	return nil
 }

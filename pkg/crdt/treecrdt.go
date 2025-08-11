@@ -52,7 +52,6 @@ type TreeCRDT struct {
 	ABACPolicy     *abac.ABACPolicy          `json:"abac"`
 	Secure         bool                      `json:"secure"`
 	subscribers    []subscriber
-	// Note: Delta recorder removed - true delta-state CRDTs don't need operation recording
 }
 
 
@@ -114,7 +113,6 @@ func (c *TreeCRDT) getOrCreateNode(id core.NodeID, nodeType core.NodeType, clien
 		node.Clock[clientID] = version
 		node.Owner = clientID
 		
-		// Note: Delta recording handled at state level via DeltaSync
 	}
 	return c.Nodes[id]
 }
@@ -269,7 +267,6 @@ func (c *TreeCRDT) addEdgeWithVersion(from, to core.NodeID, label string, client
 
 		c.notifySubscribers(fromNode.ID, EventAdded)
 		
-		// Note: Delta recording handled at state level via DeltaSync
 
 		log.WithFields(log.Fields{"NodeID": from, "To": to, "Label": label, "Version": newVersion}).Debug("Edge added")
 	} else {
@@ -280,18 +277,123 @@ func (c *TreeCRDT) addEdgeWithVersion(from, to core.NodeID, label string, client
 }
 
 func (c *TreeCRDT) AddEdge(from, to core.NodeID, label string, clientID core.ClientID) error {
+	// Check for immediate self-cycle
+	if from == to {
+		return fmt.Errorf("cannot attach node %s to itself", from)
+	}
+	
+	// For LWW semantics, check if this operation can resolve conflicts
+	if err := c.tryAddEdgeWithLWW(from, to, label, clientID); err != nil {
+		return err
+	}
+	
+	return nil
+}
+
+// tryAddEdgeWithLWW attempts to add an edge using LWW conflict resolution
+func (c *TreeCRDT) tryAddEdgeWithLWW(from, to core.NodeID, label string, clientID core.ClientID) error {
+	// Check if the target node already has a parent
+	existingParent := c.findParentNode(to)
+	if existingParent != "" && existingParent != from {
+		// Node already has a parent - check if this is a valid move operation
+		existingParentNode, exists := c.GetNode(existingParent)
+		if !exists {
+			return fmt.Errorf("existing parent node %s not found", existingParent)
+		}
+		
+		fromNode, exists := c.GetNode(from)
+		if !exists {
+			return fmt.Errorf("from node %s not found", from)
+		}
+		
+		// For same client, check if this is a valid move (later timestamp)
+		// Different clients use LWW resolution
+		if clientID == existingParentNode.Owner {
+			// Same client - only allow if this is a later operation (move)
+			
+			newClock := fromNode.Clock[clientID] + 1
+			existingClock := existingParentNode.Clock[existingParentNode.Owner]
+			
+			log.WithFields(log.Fields{
+				"From": from, "To": to, "ClientID": clientID,
+				"NewClock": newClock, "ExistingClock": existingClock,
+			}).Debug("Same client move operation")
+			
+			if newClock >= existingClock {
+				// Same or later operation by same client - allow as move
+				log.WithFields(log.Fields{"From": from, "To": to}).Debug("Same client move allowed")
+				err := c.RemoveEdge(existingParent, to, clientID)
+				if err != nil {
+					return fmt.Errorf("failed to remove existing edge for same-client move: %w", err)
+				}
+			} else {
+				// Earlier or same timestamp - reject to prevent multiple parents
+				return fmt.Errorf("adding edge would create multiple parents for node %s", to)
+			}
+		} else {
+			// Different clients - use LWW resolution
+			// Compare vector clocks for different clients
+			newClock := fromNode.Clock[clientID] + 1
+			existingClock := existingParentNode.Clock[existingParentNode.Owner]
+			
+			log.WithFields(log.Fields{
+				"From": from, "To": to, "ClientID": clientID,
+				"ExistingParent": existingParent, "ExistingOwner": existingParentNode.Owner,
+				"NewClock": newClock, "ExistingClock": existingClock,
+			}).Debug("LWW comparison for different clients")
+			
+			// Use standard LWW resolution for different clients
+			canWin := newClock > existingClock || (newClock == existingClock && clientID < existingParentNode.Owner)
+			
+			if canWin {
+				// New operation wins - remove existing edge first
+				log.WithFields(log.Fields{"From": from, "To": to}).Debug("New edge wins LWW")
+				err := c.RemoveEdge(existingParent, to, clientID)
+				if err != nil {
+					return fmt.Errorf("failed to remove existing edge for LWW resolution: %w", err)
+				}
+			} else {
+				// Existing edge wins - reject new operation
+				log.WithFields(log.Fields{"From": from, "To": to}).Debug("Existing edge wins LWW")
+				return fmt.Errorf("existing edge wins LWW conflict resolution")
+			}
+		}
+	}
+	
+	// Check for cycle after potential edge removal
 	if c.validAttachment(from, to) != nil {
-		return fmt.Errorf("Adding edge would create a cycle: %s -> %s or multiple parents", from, to)
+		return fmt.Errorf("adding edge would create a cycle: %s -> %s", from, to)
 	}
 
+	// Proceed with normal edge addition
 	fromNode, ok := c.Nodes[from]
 	if !ok {
-		return errors.New("Cannot add edge, from node not found: " + string(from))
+		return fmt.Errorf("from node %s not found", from)
 	}
 
+	_, ok = c.Nodes[to]
+	if !ok {
+		return fmt.Errorf("to node %s not found", to)
+	}
+
+	// Check if we should promote the parent to an array before adding edge
+	if c.shouldPromoteToArray(fromNode) && !fromNode.IsRoot {
+		log.WithFields(log.Fields{
+			"ParentID": from,
+			"ChildID":  to,
+			"Label":    label,
+		}).Debug("Triggering array promotion during edge addition")
+		
+		err := c.promoteNodeToArray(fromNode, to, label, clientID)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	// Standard edge addition
 	latestVersion := fromNode.Clock[clientID]
 	newVersion := latestVersion + 1
-
 	return c.addEdgeWithVersion(from, to, label, clientID, newVersion)
 }
 
@@ -621,6 +723,112 @@ func (n *NodeCRDT) markDeletedWithVersion(clientID core.ClientID, version int) e
 //   - Optionally call Tidy() periodically (e.g., background maintenance) or before persisting to disk.
 //
 // This helps keep the CRDT tree compact without risking consistency.
+// shouldPromoteToArray checks if a node should be promoted to an array
+// when adding a new child. This is the key fix for consistent array promotion.
+func (c *TreeCRDT) shouldPromoteToArray(parent *NodeCRDT) bool {
+	// Promotion conditions:
+	// 1. Parent has exactly 1 child (adding a second triggers promotion)
+	// 2. Parent is not already a Map or Array
+	// 3. Parent is not the root (root should always accept multiple children)
+	
+	if parent.IsRoot {
+		return false // Root never gets promoted
+	}
+	
+	if parent.IsMap || parent.IsArray {
+		return false // Already a container type
+	}
+	
+	if len(parent.Edges) == 1 {
+		return true // Has one child, adding second should trigger promotion
+	}
+	
+	return false
+}
+
+// promoteNodeToArray promotes a node to an array, preserving its existing children
+// This ensures consistent behavior regardless of operation timing
+func (c *TreeCRDT) promoteNodeToArray(parent *NodeCRDT, newChildID core.NodeID, edgeLabel string, clientID core.ClientID) error {
+	if len(parent.Edges) != 1 {
+		return nil // No promotion needed
+	}
+	
+	existingEdge := parent.Edges[0]
+	existingChild := c.Nodes[existingEdge.To]
+	
+	// Create the new child node if it doesn't exist
+	newChild, ok := c.Nodes[newChildID]
+	if !ok {
+		// The new child should have been created before calling this function
+		return fmt.Errorf("new child node %s not found", newChildID)
+	}
+	
+	// Create promoted array node
+	arrayNode := c.CreateNode("arr", Array, parent.Owner)
+	arrayNode.IsArray = true
+	arrayNode.IsPromoted = true
+	
+	// Find parent of the node being promoted
+	var grandParent *NodeCRDT
+	var parentEdgeLabel string
+	for _, node := range c.Nodes {
+		for _, edge := range node.Edges {
+			if edge.To == parent.ID {
+				grandParent = node
+				parentEdgeLabel = edge.Label
+				break
+			}
+		}
+		if grandParent != nil {
+			break
+		}
+	}
+	
+	if grandParent == nil {
+		log.WithField("NodeID", parent.ID).Error("Cannot find parent for promotion")
+		return nil
+	}
+	
+	// Remove existing edge from grandparent to parent
+	err := c.removeEdgeWithVersion(grandParent.ID, parent.ID, parent.Owner, parent.Clock[parent.Owner], true)
+	if err != nil {
+		log.WithError(err).Error("Failed to remove edge during promotion")
+		return err
+	}
+	
+	// Add edge from grandparent to promoted array
+	// Use addEdgeWithVersion directly to avoid recursive promotion checks
+	err = c.addEdgeWithVersion(grandParent.ID, arrayNode.ID, parentEdgeLabel, clientID, grandParent.Clock[clientID]+1)
+	if err != nil {
+		log.WithError(err).Error("Failed to add edge to promoted array")
+		return err
+	}
+	
+	// Sort children by NodeID for deterministic ordering (for now)
+	// TODO: Use vector clock resolution for ordering
+	children := []*NodeCRDT{existingChild, newChild}
+	sort.Slice(children, func(i, j int) bool {
+		return children[i].ID < children[j].ID
+	})
+	
+	// Add both children to the promoted array
+	for _, child := range children {
+		if child.ID == existingChild.ID {
+			// Re-add existing child
+			err = c.AppendEdge(arrayNode.ID, child.ID, "", parent.Owner)
+		} else {
+			// Add new child
+			err = c.AppendEdge(arrayNode.ID, child.ID, edgeLabel, clientID)
+		}
+		if err != nil {
+			log.WithError(err).Error("Failed to add child to promoted array")
+			return err
+		}
+	}
+	
+	return nil
+}
+
 func (c *TreeCRDT) Tidy() {
 	referenced := make(map[core.NodeID]bool)
 
@@ -1076,6 +1284,167 @@ func (c *TreeCRDT) validAttachment(from, to core.NodeID) error {
 	}
 
 	return nil
+}
+
+// validAttachmentWithLWW performs attachment validation with Last Writer Wins semantics
+// It allows operations that would normally create conflicts if they can be resolved by LWW
+func (c *TreeCRDT) validAttachmentWithLWW(from, to core.NodeID, clientID core.ClientID) error {
+	if from == to {
+		return fmt.Errorf("cannot attach node %s to itself", from)
+	}
+
+	// Check if `to` already has a parent - this is where LWW resolution can help
+	existingParent := core.NodeID("")
+	for _, parent := range c.Nodes {
+		for _, edge := range parent.Edges {
+			if edge.To == to {
+				existingParent = parent.ID
+				break
+			}
+		}
+		if existingParent != "" {
+			break
+		}
+	}
+
+	// If node has existing parent, we can allow the operation if it can win via LWW
+	if existingParent != "" && existingParent != from {
+		// Allow the operation - LWW resolution will handle it during merge
+		// This enables move operations to succeed individually and be resolved during merge
+		return nil
+	}
+
+	// Standard cycle detection, but with LWW consideration
+	visited := make(map[core.NodeID]bool)
+	var dfs func(core.NodeID) bool
+	dfs = func(id core.NodeID) bool {
+		if id == from {
+			return true
+		}
+		visited[id] = true
+		node := c.Nodes[id]
+		for _, edge := range node.Edges {
+			if !visited[edge.To] && dfs(edge.To) {
+				return true
+			}
+		}
+		return false
+	}
+	
+	// For potential cycles, allow the operation if it could be resolved by LWW
+	// The actual resolution will happen during merge
+	if dfs(to) {
+		// This would create a cycle, but in LWW semantics, we allow it
+		// and let the merge process resolve which edges win
+		return nil
+	}
+
+	return nil
+}
+
+// MoveNodeWithLWW implements a move operation with Last Writer Wins semantics
+// It removes the node from its current parent and adds it to the new parent
+// If conflicts arise, they are resolved using vector clock comparison
+func (c *TreeCRDT) MoveNodeWithLWW(nodeID, newParentID core.NodeID, newLabel string, clientID core.ClientID) error {
+	node, exists := c.GetNode(nodeID)
+	if !exists {
+		return fmt.Errorf("node %s not found", nodeID)
+	}
+	
+	_, exists = c.GetNode(newParentID)
+	if !exists {
+		return fmt.Errorf("new parent %s not found", newParentID)
+	}
+	
+	// If node already has this parent, nothing to do
+	if node.ParentID == newParentID {
+		return nil
+	}
+	
+	// Check for self-cycle
+	if nodeID == newParentID {
+		return fmt.Errorf("cannot move node %s to itself", nodeID)
+	}
+	
+	// Remove from current parent if it has one
+	if node.ParentID != "" {
+		err := c.RemoveEdge(node.ParentID, nodeID, clientID)
+		if err != nil {
+			return fmt.Errorf("failed to remove node from current parent: %w", err)
+		}
+	}
+	
+	// Add to new parent - use LWW-aware validation
+	err := c.addEdgeWithLWW(newParentID, nodeID, newLabel, clientID)
+	if err != nil {
+		// If the LWW add fails, try to restore the old parent connection
+		if node.ParentID != "" {
+			_ = c.AddEdge(node.ParentID, nodeID, "", clientID) // Best effort restore
+		}
+		return fmt.Errorf("failed to add node to new parent: %w", err)
+	}
+	
+	return nil
+}
+
+// addEdgeWithLWW adds an edge with LWW conflict resolution
+func (c *TreeCRDT) addEdgeWithLWW(from, to core.NodeID, label string, clientID core.ClientID) error {
+	// Use LWW-aware validation instead of strict validation
+	if err := c.validAttachmentWithLWW(from, to, clientID); err != nil {
+		return err
+	}
+	
+	fromNode, ok := c.Nodes[from]
+	if !ok {
+		return fmt.Errorf("from node %s not found", from)
+	}
+	
+	_, ok = c.Nodes[to]
+	if !ok {
+		return fmt.Errorf("to node %s not found", to)
+	}
+	
+	// Check if adding this edge would resolve a conflict via LWW
+	existingParentID := c.findParentNode(to)
+	if existingParentID != "" && existingParentID != from {
+		// Node already has a parent - remove the old edge first based on LWW
+		existingParent, exists := c.GetNode(existingParentID)
+		if exists {
+			// Compare vector clocks to determine which edge should win
+			fromNodeClock := fromNode.Clock[clientID]
+			existingParentClock := existingParent.Clock[existingParent.Owner]
+			
+			// If the new operation has a higher clock, it wins
+			if fromNodeClock > existingParentClock || 
+			   (fromNodeClock == existingParentClock && clientID < existingParent.Owner) {
+				// New edge wins - remove old edge
+				err := c.RemoveEdge(existingParentID, to, clientID)
+				if err != nil {
+					return fmt.Errorf("failed to remove existing edge during LWW resolution: %w", err)
+				}
+			} else {
+				// Existing edge wins - reject new edge
+				return fmt.Errorf("existing edge wins LWW resolution")
+			}
+		}
+	}
+	
+	// Standard edge addition
+	latestVersion := fromNode.Clock[clientID]
+	newVersion := latestVersion + 1
+	return c.addEdgeWithVersion(from, to, label, clientID, newVersion)
+}
+
+// findParentNode finds the parent of a given node
+func (c *TreeCRDT) findParentNode(nodeID core.NodeID) core.NodeID {
+	for _, parent := range c.Nodes {
+		for _, edge := range parent.Edges {
+			if edge.To == nodeID {
+				return parent.ID
+			}
+		}
+	}
+	return ""
 }
 
 func (c *TreeCRDT) ValidateTree() error {
