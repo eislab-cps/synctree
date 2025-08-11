@@ -81,7 +81,7 @@ func (n *NodeCRDT) applySetLiteralMutations(mut Mutation) error {
 			"WinningClock":          winningClock,
 			"ExistingOwner":         n.Owner,
 			"WinningOwner":          winningOwner}).Debug("Literal set ignored due to conflict")
-		return fmt.Errorf("Cannot set literal value, conflict detected: %s", n.ID)
+		return fmt.Errorf("cannot set literal value, conflict detected: %s", n.ID)
 	}
 
 	return nil

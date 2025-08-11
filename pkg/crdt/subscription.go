@@ -44,7 +44,7 @@ func (c *TreeCRDT) Subscribe(path string, ch chan NodeEvent) {
 func (c *TreeCRDT) computePath(nodeID core.NodeID) (string, error) {
 	node, ok := c.Nodes[nodeID]
 	if !ok {
-		return "", fmt.Errorf("Node %s not found", nodeID)
+		return "", fmt.Errorf("node %s not found", nodeID)
 	}
 
 	var pathParts []string
@@ -53,7 +53,7 @@ func (c *TreeCRDT) computePath(nodeID core.NodeID) (string, error) {
 		parentID := current.ParentID
 		parent, exists := c.Nodes[parentID]
 		if !exists {
-			return "", fmt.Errorf("Parent %s not found for node %s", parentID, current.ID)
+			return "", fmt.Errorf("parent %s not found for node %s", parentID, current.ID)
 		}
 
 		found := false
@@ -83,7 +83,7 @@ func (c *TreeCRDT) computePath(nodeID core.NodeID) (string, error) {
 		}
 
 		if !found {
-			return "", fmt.Errorf("Could not compute path part for node %s", current.ID)
+			return "", fmt.Errorf("could not compute path part for node %s", current.ID)
 		}
 
 		current = parent

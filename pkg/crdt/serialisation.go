@@ -286,6 +286,11 @@ func (c *TreeCRDT) Save() ([]byte, error) {
 			"signature":     node.Signature,
 			"nonce":        node.Nonce,
 			"edges":         edges,
+			// Array-specific metadata
+			"isarrayroot":    node.IsArrayRoot,
+			"isarrayelement": node.IsArrayElement,
+			"arrayindex":     node.ArrayIndex,
+			"btreekey":       node.BTreeKey,
 		}
 	}
 
@@ -335,6 +340,21 @@ func (c *TreeCRDT) Load(data []byte) error {
 			Signature:    nodeMap["signature"].(string),
 			Nonce:       nodeMap["nonce"].(string),
 		}
+		
+		// Load array-specific metadata if present
+		if isArrayRoot, ok := nodeMap["isarrayroot"].(bool); ok {
+			node.IsArrayRoot = isArrayRoot
+		}
+		if isArrayElement, ok := nodeMap["isarrayelement"].(bool); ok {
+			node.IsArrayElement = isArrayElement
+		}
+		if arrayIndex, ok := nodeMap["arrayindex"].(float64); ok {
+			node.ArrayIndex = int(arrayIndex)
+		}
+		if btreeKey, ok := nodeMap["btreekey"].(string); ok {
+			node.BTreeKey = btreeKey
+		}
+		
 		node.tree = c
 
 		if clockMap, ok := nodeMap["clock"].(map[string]interface{}); ok {

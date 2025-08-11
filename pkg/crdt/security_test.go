@@ -30,6 +30,8 @@ func TestInterop(t *testing.T) {
 	signaturesHex := "e713a1bb015fecabb5a084b0fe6d6e7271fca6f79525a634183cfdb175fe69241f4da161779d8e6b761200e1cf93766010a19072fa778f9643363e2cfadd640900"
 
 	signatureBytes, err := hex.DecodeString(signaturesHex)
+	assert.Nil(t, err)
 	recoveredID, err := crypto.RecoveredID(hash, signatureBytes)
+	assert.Nil(t, err)
 	fmt.Println("recoveredID: " + recoveredID)
 }

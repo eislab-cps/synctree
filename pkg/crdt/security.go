@@ -24,7 +24,7 @@ type nodeDigest struct {
 	IsArray      bool           `json:"isarray"`
 	IsLiteral    bool           `json:"isliteral"`
 	LiteralValue interface{}    `json:"literalValue"`
-	Nonce       string         `json:"nonce"`
+	Nonce        string         `json:"nonce"`
 	IsDeleted    bool           `json:"deleted"`
 }
 
@@ -38,7 +38,7 @@ func (n *NodeCRDT) ComputeDigest() (*crypto.Hash, error) {
 		IsArray:      n.IsArray,
 		IsLiteral:    n.IsLiteral,
 		LiteralValue: n.LiteralValue,
-		Nonce:       n.Nonce,
+		Nonce:        n.Nonce,
 		IsDeleted:    n.IsDeleted,
 	}
 
@@ -66,7 +66,7 @@ func (n *NodeCRDT) ComputeDigest() (*crypto.Hash, error) {
 	buf.Truncate(buf.Len() - 1) // remove last comma
 	buf.WriteString("}")
 
-	digest := crypto.GenerateHashFromString(string(buf.Bytes()) + n.Nonce)
+	digest := crypto.GenerateHashFromString(buf.String() + n.Nonce)
 
 	return digest, nil
 }
@@ -130,7 +130,7 @@ func (n *NodeCRDT) Sign(identity *crypto.Identity) error {
 			"NodeID": n.ID,
 			"Error":  err,
 		}).Error("Failed to compute node digest")
-		return fmt.Errorf("Failed to compute node digest: %w", err)
+		return fmt.Errorf("failed to compute node digest: %w", err)
 	}
 
 	signature, err := crypto.Sign(digest, identity.PrivateKey())
@@ -139,7 +139,7 @@ func (n *NodeCRDT) Sign(identity *crypto.Identity) error {
 			"NodeID": n.ID,
 			"Error":  err,
 		}).Error("Failed to sign node")
-		return fmt.Errorf("Failed to sign node: %w", err)
+		return fmt.Errorf("failed to sign node: %w", err)
 	}
 
 	signatureStr := hex.EncodeToString(signature)
@@ -155,7 +155,7 @@ func (n *NodeCRDT) Verify() (string, error) {
 			"NodeID": n.ID,
 			"Error":  err,
 		}).Error("Failed to compute node digest")
-		return "", fmt.Errorf("Failed to compute node digest: %w", err)
+		return "", fmt.Errorf("failed to compute node digest: %w", err)
 	}
 	signatureBytes, err := hex.DecodeString(n.Signature)
 	if err != nil {
@@ -163,7 +163,7 @@ func (n *NodeCRDT) Verify() (string, error) {
 			"NodeID": n.ID,
 			"Error":  err,
 		}).Error("Failed to decode signature")
-		return "", fmt.Errorf("Failed to decode signature: %w", err)
+		return "", fmt.Errorf("failed to decode signature: %w", err)
 	}
 
 	recoveredPublicKey, err := crypto.RecoverPublicKey(digest, signatureBytes)
@@ -172,7 +172,7 @@ func (n *NodeCRDT) Verify() (string, error) {
 			"NodeID": n.ID,
 			"Error":  err,
 		}).Error("Failed to recover public key from signature")
-		return "", fmt.Errorf("Failed to recover public key from signature: %w", err)
+		return "", fmt.Errorf("failed to recover public key from signature: %w", err)
 	}
 
 	valid, err := crypto.Verify(recoveredPublicKey, digest, signatureBytes)
@@ -181,7 +181,7 @@ func (n *NodeCRDT) Verify() (string, error) {
 			"NodeID": n.ID,
 			"Error":  err,
 		}).Error("Failed to verify signature")
-		return "", fmt.Errorf("Failed to verify signature: %w", err)
+		return "", fmt.Errorf("failed to verify signature: %w", err)
 	}
 	if !valid {
 		log.WithFields(log.Fields{
@@ -189,7 +189,7 @@ func (n *NodeCRDT) Verify() (string, error) {
 			"Signature": n.Signature,
 			"Digest":    digest,
 		}).Error("Signature verification failed")
-		return "", fmt.Errorf("Signature verification failed for node %s", n.ID)
+		return "", fmt.Errorf("signature verification failed for node %s", n.ID)
 	}
 
 	recoveredID, err := crypto.RecoveredID(digest, signatureBytes)
@@ -198,7 +198,7 @@ func (n *NodeCRDT) Verify() (string, error) {
 			"NodeID": n.ID,
 			"Error":  err,
 		}).Error("Failed to recover ID from signature")
-		return "", fmt.Errorf("Failed to recover ID from signature: %w", err)
+		return "", fmt.Errorf("failed to recover ID from signature: %w", err)
 	}
 
 	if recoveredID != string(n.Owner) {
@@ -207,7 +207,7 @@ func (n *NodeCRDT) Verify() (string, error) {
 			"RecoveredID":   recoveredID,
 			"ExpectedOwner": n.Owner,
 		}).Error("Recovered ID does not match node owner")
-		return "", fmt.Errorf("Recovered ID %s does not match node owner %s", recoveredID, n.Owner)
+		return "", fmt.Errorf("recovered ID %s does not match node owner %s", recoveredID, n.Owner)
 	}
 
 	return recoveredID, nil

@@ -1059,12 +1059,12 @@ func TestTreeCRDTMarkDeletedLiteral(t *testing.T) {
 // 1. Three clients (A, B, C) start with identical state: root -> sharedNode
 // 2. Network partition occurs, splitting the clients
 // 3. During partition:
-//    - Client A: adds child1 to sharedNode
-//    - Client B: adds child2 to sharedNode
-//    - Client C: adds child3 to sharedNode
-// 4. Network heals and clients converge
-// 5. Expected: sharedNode should be promoted to an array containing [child1, child2, child3]
-//    (sorted by NodeID for deterministic ordering)
+//   - Client A: adds child1 to sharedNode
+//   - Client B: adds child2 to sharedNode
+//   - Client C: adds child3 to sharedNode
+//     4. Network heals and clients converge
+//     5. Expected: sharedNode should be promoted to an array containing [child1, child2, child3]
+//     (sorted by NodeID for deterministic ordering)
 func TestTreeCRDTNetworkPartitionArrayPromotion(t *testing.T) {
 	// Initialize three clients
 	clientA := core.ClientID("clientA")
@@ -1143,7 +1143,7 @@ func TestTreeCRDTNetworkPartitionArrayPromotion(t *testing.T) {
 	// Check the state after A-B merge
 	rootAfterAB := crdtA.Root
 	t.Logf("After A-B merge: root has %d edges", len(rootAfterAB.Edges))
-	
+
 	// Check if array promotion is starting to happen
 	if len(rootAfterAB.Edges) == 1 {
 		// Check if it's an array
@@ -1165,19 +1165,19 @@ func TestTreeCRDTNetworkPartitionArrayPromotion(t *testing.T) {
 	// Root should have been promoted to contain an array
 	rootFinal := crdtA.Root
 	t.Logf("\nFinal structure: root has %d edges", len(rootFinal.Edges))
-	
+
 	if len(rootFinal.Edges) == 1 {
 		// Check if the single child is a promoted array
 		arrayNodeID := rootFinal.Edges[0].To
 		arrayNode, ok := crdtA.GetNode(arrayNodeID)
 		assert.True(t, ok, "Array node should exist")
-		
+
 		if arrayNode.IsArray && arrayNode.IsPromoted {
 			t.Logf("Array promotion successful: root -> array[%s] (IsPromoted=%v)", arrayNodeID, arrayNode.IsPromoted)
-			
+
 			// The array should contain all four nodes (original shared + 3 new)
 			t.Logf("Array contains %d children", len(arrayNode.Edges))
-			
+
 			// Collect child values
 			childValues := make([]string, 0)
 			for i, edge := range arrayNode.Edges {
@@ -1188,7 +1188,7 @@ func TestTreeCRDTNetworkPartitionArrayPromotion(t *testing.T) {
 					t.Logf("  [%d] -> %s (value: %v)", i, edge.To, child.LiteralValue)
 				}
 			}
-			
+
 			// Verify expected values are present
 			assert.Contains(t, childValues, "shared-value", "Original shared value should be in array")
 			assert.Contains(t, childValues, "value1", "value1 should be in the array")
@@ -1263,7 +1263,7 @@ func TestTreeCRDTBasicArrayPromotion(t *testing.T) {
 
 	// Step 5: Check the result
 	rootAfterMerge := crdtA.Root
-	t.Logf("\nAfter merge: root has %d edges, IsRoot=%v, IsArray=%v, IsMap=%v", 
+	t.Logf("\nAfter merge: root has %d edges, IsRoot=%v, IsArray=%v, IsMap=%v",
 		len(rootAfterMerge.Edges), rootAfterMerge.IsRoot, rootAfterMerge.IsArray, rootAfterMerge.IsMap)
 
 	// Check if array promotion occurred
@@ -1276,9 +1276,9 @@ func TestTreeCRDTBasicArrayPromotion(t *testing.T) {
 		assert.True(t, arrayNode.IsPromoted, "Array should be marked as promoted")
 		assert.Equal(t, 2, len(arrayNode.Edges), "Array should have 2 children")
 
-		t.Logf("Array promotion occurred: root -> array[%s] (IsPromoted=%v) -> [child1, child2]", 
+		t.Logf("Array promotion occurred: root -> array[%s] (IsPromoted=%v) -> [child1, child2]",
 			arrayNodeID, arrayNode.IsPromoted)
-		
+
 		// Log children of the array
 		for i, edge := range arrayNode.Edges {
 			child, _ := crdtA.GetNode(edge.To)
@@ -1325,11 +1325,11 @@ func TestTreeCRDTArrayPromotionNonMapParent(t *testing.T) {
 	mapNodeA, ok := crdtA.GetNode(mapNodeID)
 	assert.True(t, ok, "Map node should exist")
 	assert.True(t, mapNodeA.IsMap, "First child of root should be a map")
-	
+
 	// Find the corresponding node in B
 	mapNodeB, ok := crdtB.GetNode(mapNodeID)
 	assert.True(t, ok, "Map node should exist in B")
-	
+
 	// Add a new key-value to the map in client B
 	// This should NOT trigger promotion because the node is already a Map
 	_, _, err = mapNodeB.SetKeyValue("newKey", "new-value", clientB)
