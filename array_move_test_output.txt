@@ -1,0 +1,64 @@
+Array Move Test Results - TestArrayMoveVerification
+
+INITIAL STATE: [1, 2, 3, 4, 5]
+
+CONCURRENT MOVES:
+  ClientA: Move element '1' to position 2
+  ClientB: Move element '1' to position 3
+  ClientC: Move element '1' to position 4
+
+LOCAL STATES BEFORE MERGE:
+  Tree1: [3@pos0, 2@pos1, 1@pos2, 4@pos3, 5@pos4]
+  Tree2: [2@pos1, 3@pos2, 1@pos3, 5@pos4, 4@pos5]
+  Tree3: [2@pos1, 3@pos2, 4@pos3, 1@pos4, 5@pos5]
+
+Element '1' positions after local moves:
+  Tree1: 2
+  Tree2: 3
+  Tree3: 4
+
+MERGING REPLICAS...
+(Many SetLiteral failed errors and path computation errors during merge)
+
+FINAL CONVERGED STATES:
+  Tree1: [3@pos0, 2@pos1, 1@pos2, 4@pos3, 5@pos4]
+  Tree2: [2@pos0, 3@pos1, 4@pos2, 1@pos3, 5@pos4]
+  Tree3: [2@pos1, 3@pos2, 4@pos3, 1@pos4, 5@pos5]
+
+RESULT: Element '1' final position: 2
+
+ANALYSIS:
+=========
+
+✅ GOOD:
+- Moves are working locally (element 1 successfully moved to positions 2, 3, 4 in different replicas)
+- No element duplication occurred
+- All original elements preserved (1, 2, 3, 4, 5 all exist)
+
+❌ PROBLEMS:
+- Trees are NOT converging to the same state after merge
+- Tree1 final: [3, 2, 1, 4, 5] 
+- Tree2 final: [2, 3, 4, 1, 5]
+- Tree3 final: [?, 2, 3, 4, 1, 5] (position 0 appears empty)
+- Many merge errors: "SetLiteral failed" conflicts and "Failed to compute path"
+
+ROOT CAUSE:
+===========
+The merge logic for TreeCRDT is not properly synchronizing array element positions.
+When nodes merge, their ArrayIndex metadata and array structure isn't being properly unified.
+This results in each replica maintaining its own local array structure instead of converging.
+
+EXPECTED CRDT BEHAVIOR:
+======================
+All replicas should converge to the SAME final array structure after merge, determined by:
+- Last Writer Wins (LWW) conflict resolution based on vector clocks
+- Deterministic tie-breaking for concurrent moves
+- Consistent array element positioning across all replicas
+
+RECOMMENDATION:
+==============
+The merge process needs to be enhanced to:
+1. Properly synchronize ArrayIndex values during node merges
+2. Handle array element conflicts deterministically 
+3. Ensure all replicas apply the same final array structure
+4. Fix path computation for array elements

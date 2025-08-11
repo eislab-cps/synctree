@@ -1,0 +1,201 @@
+=== RUN   TestArrayMoveDuplicationPrevention
+=== RUN   TestArrayMoveDuplicationPrevention/single_element_concurrent_moves_-_no_duplication
+time="2025-08-11T12:52:30+02:00" level=error msg="Failed to compute path for notifySubscribers" Error="parent  not found for node testArray-2bbbcfc4df81d30a2e6009d0b1dfbfc138becc5720cb6745d0f4187e5f026cd2" NodeID=testArray-2bbbcfc4df81d30a2e6009d0b1dfbfc138becc5720cb6745d0f4187e5f026cd2
+    array_duplication_test.go:56: INITIAL STATE: Single element at position 0
+    array_duplication_test.go:57: CONCURRENT MOVES: 3 clients move same element to different positions
+    array_duplication_test.go:58: EXPECTED: Element appears exactly once (no duplication)
+    array_duplication_test.go:92: Concurrent move result: Move to pos1 SUCCESS
+    array_duplication_test.go:92: Concurrent move result: Move to pos3 SUCCESS
+    array_duplication_test.go:92: Concurrent move result: Move to pos2 SUCCESS
+    array_duplication_test.go:97: ACTUAL STATE: Array contains 1 elements
+    array_duplication_test.go:105: Element final position: 2
+    array_duplication_test.go:108: SUCCESS: No duplication occurred - element exists exactly once
+=== RUN   TestArrayMoveDuplicationPrevention/multiple_elements_concurrent_moves_-_no_duplication
+time="2025-08-11T12:52:30+02:00" level=error msg="Failed to compute path for notifySubscribers" Error="parent  not found for node multiArray-a9a8c6b1989f4832e857880dae6d2ec241728ea2eb6a479912b3f509fc15e5eb" NodeID=multiArray-a9a8c6b1989f4832e857880dae6d2ec241728ea2eb6a479912b3f509fc15e5eb
+time="2025-08-11T12:52:30+02:00" level=error msg="Failed to compute path for notifySubscribers" Error="parent  not found for node multiArray-a9a8c6b1989f4832e857880dae6d2ec241728ea2eb6a479912b3f509fc15e5eb" NodeID=multiArray-a9a8c6b1989f4832e857880dae6d2ec241728ea2eb6a479912b3f509fc15e5eb
+time="2025-08-11T12:52:30+02:00" level=error msg="Failed to compute path for notifySubscribers" Error="parent  not found for node multiArray-a9a8c6b1989f4832e857880dae6d2ec241728ea2eb6a479912b3f509fc15e5eb" NodeID=multiArray-a9a8c6b1989f4832e857880dae6d2ec241728ea2eb6a479912b3f509fc15e5eb
+    array_duplication_test.go:130: INITIAL STATE: 3 elements at positions [0, 1, 2]
+    array_duplication_test.go:131: CONCURRENT STRESS TEST: Multiple elements moving simultaneously
+    array_duplication_test.go:170: Operation result: elem1→pos2 SUCCESS
+    array_duplication_test.go:170: Operation result: elem0→pos2 SUCCESS
+    array_duplication_test.go:170: Operation result: elem1→pos0 SUCCESS
+    array_duplication_test.go:170: Operation result: elem2→pos1 SUCCESS
+    array_duplication_test.go:170: Operation result: elem0→pos1 SUCCESS
+    array_duplication_test.go:175: ACTUAL FINAL STATE:
+    array_duplication_test.go:184:   elem_1-8c1febd353394c88c9f33f2ac6be3d71941e9cf8ad9da5131e3c24f6f19d4cb6 at position 0
+    array_duplication_test.go:184:   elem_0-965362d5b7db6b884b5ba54f25a60098f6f2efcd72888d333524dac8d40ea1ca at position 1
+    array_duplication_test.go:184:   elem_2-2d7143f83a28367949a2154d81a27a7b3f4b100f4848d0ec4a418ba66ed54141 at position 2
+    array_duplication_test.go:202: SUCCESS: All elements preserved uniquely, no duplication or loss
+--- PASS: TestArrayMoveDuplicationPrevention (0.00s)
+    --- PASS: TestArrayMoveDuplicationPrevention/single_element_concurrent_moves_-_no_duplication (0.00s)
+    --- PASS: TestArrayMoveDuplicationPrevention/multiple_elements_concurrent_moves_-_no_duplication (0.00s)
+=== RUN   TestArrayMoveTreeStructurePreservation
+=== RUN   TestArrayMoveTreeStructurePreservation/moves_within_array_preserve_tree_structure
+    array_duplication_test.go:233: INITIAL TREE STRUCTURE:
+    array_duplication_test.go:234:   Root → ArrayParent → Array → [elem0, elem1, elem2]
+    array_duplication_test.go:242: AFTER MOVES: Positions rearranged within array
+    array_duplication_test.go:245: VERIFYING TREE STRUCTURE INTEGRITY:
+    array_duplication_test.go:263: SUCCESS: Tree structure preserved during array moves
+=== RUN   TestArrayMoveTreeStructurePreservation/prevent_moves_that_would_create_tree_cycles
+    array_duplication_test.go:286: INITIAL STRUCTURE: Root → NodeA → ArrayB → ElementC
+    array_duplication_test.go:289: ATTEMPTING CYCLE: Move NodeA into ArrayB (would create Root → NodeA → ArrayB → NodeA)
+    array_duplication_test.go:295: Cycle prevention: Move properly REJECTED - node nodeA-6935667ebc9da9c516ba4ecde2686cfba4eab5e2d364a3a2b97b233c3457a4c7 is not an array element
+    array_duplication_test.go:306: SUCCESS: Tree structure integrity maintained
+--- PASS: TestArrayMoveTreeStructurePreservation (0.00s)
+    --- PASS: TestArrayMoveTreeStructurePreservation/moves_within_array_preserve_tree_structure (0.00s)
+    --- PASS: TestArrayMoveTreeStructurePreservation/prevent_moves_that_would_create_tree_cycles (0.00s)
+=== RUN   TestArrayLogicalConcurrency
+=== RUN   TestArrayLogicalConcurrency/concurrent_array_moves_-_logical_concurrency
+    array_logical_concurrency_test.go:58: INITIAL STATE: [elem0, elem1, elem2, elem3] at positions [0, 1, 2, 3]
+    array_logical_concurrency_test.go:73: CLIENT A OPERATIONS (independent):
+    array_logical_concurrency_test.go:76:   - Attempted move elem0 to position 3 (LWW may reject based on vector clocks)
+    array_logical_concurrency_test.go:79: CLIENT B OPERATIONS (independent):
+    array_logical_concurrency_test.go:82:   - Attempted move elem1 to position 0 (LWW may reject based on vector clocks)
+    array_logical_concurrency_test.go:85: CLIENT C OPERATIONS (independent):
+    array_logical_concurrency_test.go:88:   - Attempted move elem2 to position 1 (LWW may reject based on vector clocks)
+    array_logical_concurrency_test.go:91: 
+        LOCAL STATES BEFORE MERGE:
+    array_logical_concurrency_test.go:344:   ClientA: [value_0@pos0, value_1@pos1, value_2@pos2, value_3@pos3]
+    array_logical_concurrency_test.go:344:   ClientB: [value_0@pos0, value_1@pos1, value_2@pos2, value_3@pos3]
+    array_logical_concurrency_test.go:344:   ClientC: [value_0@pos0, value_1@pos1, value_2@pos2, value_3@pos3]
+    array_logical_concurrency_test.go:97: 
+        MERGE PHASE: Simulating distributed synchronization
+time="2025-08-11T12:52:30+02:00" level=error msg="SetLiteral failed" AttemptedValue=value_0 ClientID=setup Error="cannot set literal value, conflict detected: elem_0-e79e49756513ce61df021488e488e2555f5617741329941f05585f505cb425c4" NodeID=elem_0-e79e49756513ce61df021488e488e2555f5617741329941f05585f505cb425c4
+time="2025-08-11T12:52:30+02:00" level=warning msg="Failed to set literal value during merge" Error="SetLiteral failed: cannot set literal value, conflict detected: elem_0-e79e49756513ce61df021488e488e2555f5617741329941f05585f505cb425c4" NodeID=elem_0-e79e49756513ce61df021488e488e2555f5617741329941f05585f505cb425c4
+time="2025-08-11T12:52:30+02:00" level=error msg="SetLiteral failed" AttemptedValue=value_1 ClientID=setup Error="cannot set literal value, conflict detected: elem_1-af474ed4ff9477e450ece3d5cf6d3767c0a284967f475f5e77ce456490b98f78" NodeID=elem_1-af474ed4ff9477e450ece3d5cf6d3767c0a284967f475f5e77ce456490b98f78
+time="2025-08-11T12:52:30+02:00" level=warning msg="Failed to set literal value during merge" Error="SetLiteral failed: cannot set literal value, conflict detected: elem_1-af474ed4ff9477e450ece3d5cf6d3767c0a284967f475f5e77ce456490b98f78" NodeID=elem_1-af474ed4ff9477e450ece3d5cf6d3767c0a284967f475f5e77ce456490b98f78
+time="2025-08-11T12:52:30+02:00" level=error msg="SetLiteral failed" AttemptedValue=value_0 ClientID=setup Error="cannot set literal value, conflict detected: elem_0-e79e49756513ce61df021488e488e2555f5617741329941f05585f505cb425c4" NodeID=elem_0-e79e49756513ce61df021488e488e2555f5617741329941f05585f505cb425c4
+time="2025-08-11T12:52:30+02:00" level=warning msg="Failed to set literal value during merge" Error="SetLiteral failed: cannot set literal value, conflict detected: elem_0-e79e49756513ce61df021488e488e2555f5617741329941f05585f505cb425c4" NodeID=elem_0-e79e49756513ce61df021488e488e2555f5617741329941f05585f505cb425c4
+time="2025-08-11T12:52:30+02:00" level=error msg="SetLiteral failed" AttemptedValue=value_1 ClientID=setup Error="cannot set literal value, conflict detected: elem_1-af474ed4ff9477e450ece3d5cf6d3767c0a284967f475f5e77ce456490b98f78" NodeID=elem_1-af474ed4ff9477e450ece3d5cf6d3767c0a284967f475f5e77ce456490b98f78
+time="2025-08-11T12:52:30+02:00" level=warning msg="Failed to set literal value during merge" Error="SetLiteral failed: cannot set literal value, conflict detected: elem_1-af474ed4ff9477e450ece3d5cf6d3767c0a284967f475f5e77ce456490b98f78" NodeID=elem_1-af474ed4ff9477e450ece3d5cf6d3767c0a284967f475f5e77ce456490b98f78
+time="2025-08-11T12:52:30+02:00" level=error msg="SetLiteral failed" AttemptedValue=value_2 ClientID=setup Error="cannot set literal value, conflict detected: elem_2-15102482a6c5ae2bbd127d72195a278ffd73603669e2ad7aa50f15faca718723" NodeID=elem_2-15102482a6c5ae2bbd127d72195a278ffd73603669e2ad7aa50f15faca718723
+time="2025-08-11T12:52:30+02:00" level=warning msg="Failed to set literal value during merge" Error="SetLiteral failed: cannot set literal value, conflict detected: elem_2-15102482a6c5ae2bbd127d72195a278ffd73603669e2ad7aa50f15faca718723" NodeID=elem_2-15102482a6c5ae2bbd127d72195a278ffd73603669e2ad7aa50f15faca718723
+time="2025-08-11T12:52:30+02:00" level=error msg="SetLiteral failed" AttemptedValue=value_1 ClientID=setup Error="cannot set literal value, conflict detected: elem_1-af474ed4ff9477e450ece3d5cf6d3767c0a284967f475f5e77ce456490b98f78" NodeID=elem_1-af474ed4ff9477e450ece3d5cf6d3767c0a284967f475f5e77ce456490b98f78
+time="2025-08-11T12:52:30+02:00" level=warning msg="Failed to set literal value during merge" Error="SetLiteral failed: cannot set literal value, conflict detected: elem_1-af474ed4ff9477e450ece3d5cf6d3767c0a284967f475f5e77ce456490b98f78" NodeID=elem_1-af474ed4ff9477e450ece3d5cf6d3767c0a284967f475f5e77ce456490b98f78
+time="2025-08-11T12:52:30+02:00" level=error msg="SetLiteral failed" AttemptedValue=value_0 ClientID=setup Error="cannot set literal value, conflict detected: elem_0-e79e49756513ce61df021488e488e2555f5617741329941f05585f505cb425c4" NodeID=elem_0-e79e49756513ce61df021488e488e2555f5617741329941f05585f505cb425c4
+time="2025-08-11T12:52:30+02:00" level=warning msg="Failed to set literal value during merge" Error="SetLiteral failed: cannot set literal value, conflict detected: elem_0-e79e49756513ce61df021488e488e2555f5617741329941f05585f505cb425c4" NodeID=elem_0-e79e49756513ce61df021488e488e2555f5617741329941f05585f505cb425c4
+time="2025-08-11T12:52:30+02:00" level=error msg="SetLiteral failed" AttemptedValue=value_0 ClientID=setup Error="cannot set literal value, conflict detected: elem_0-e79e49756513ce61df021488e488e2555f5617741329941f05585f505cb425c4" NodeID=elem_0-e79e49756513ce61df021488e488e2555f5617741329941f05585f505cb425c4
+time="2025-08-11T12:52:30+02:00" level=warning msg="Failed to set literal value during merge" Error="SetLiteral failed: cannot set literal value, conflict detected: elem_0-e79e49756513ce61df021488e488e2555f5617741329941f05585f505cb425c4" NodeID=elem_0-e79e49756513ce61df021488e488e2555f5617741329941f05585f505cb425c4
+time="2025-08-11T12:52:30+02:00" level=error msg="SetLiteral failed" AttemptedValue=value_1 ClientID=setup Error="cannot set literal value, conflict detected: elem_1-af474ed4ff9477e450ece3d5cf6d3767c0a284967f475f5e77ce456490b98f78" NodeID=elem_1-af474ed4ff9477e450ece3d5cf6d3767c0a284967f475f5e77ce456490b98f78
+time="2025-08-11T12:52:30+02:00" level=warning msg="Failed to set literal value during merge" Error="SetLiteral failed: cannot set literal value, conflict detected: elem_1-af474ed4ff9477e450ece3d5cf6d3767c0a284967f475f5e77ce456490b98f78" NodeID=elem_1-af474ed4ff9477e450ece3d5cf6d3767c0a284967f475f5e77ce456490b98f78
+time="2025-08-11T12:52:30+02:00" level=error msg="SetLiteral failed" AttemptedValue=value_2 ClientID=setup Error="cannot set literal value, conflict detected: elem_2-15102482a6c5ae2bbd127d72195a278ffd73603669e2ad7aa50f15faca718723" NodeID=elem_2-15102482a6c5ae2bbd127d72195a278ffd73603669e2ad7aa50f15faca718723
+time="2025-08-11T12:52:30+02:00" level=warning msg="Failed to set literal value during merge" Error="SetLiteral failed: cannot set literal value, conflict detected: elem_2-15102482a6c5ae2bbd127d72195a278ffd73603669e2ad7aa50f15faca718723" NodeID=elem_2-15102482a6c5ae2bbd127d72195a278ffd73603669e2ad7aa50f15faca718723
+    array_logical_concurrency_test.go:118: 
+        CONVERGED STATES AFTER MERGE:
+    array_logical_concurrency_test.go:344:   ClientA: [value_0@pos0, value_1@pos1, value_2@pos2, value_3@pos3]
+    array_logical_concurrency_test.go:344:   ClientB: [value_0@pos0, value_1@pos1, value_2@pos2, value_3@pos3]
+    array_logical_concurrency_test.go:344:   ClientC: [value_0@pos0, value_1@pos1, value_2@pos2, value_3@pos3]
+    array_logical_concurrency_test.go:149: 
+        SUCCESS: Logical concurrency test completed successfully
+    array_logical_concurrency_test.go:150:   - No element duplication occurred
+    array_logical_concurrency_test.go:151:   - All replicas converged to same state
+    array_logical_concurrency_test.go:152:   - LWW conflict resolution working correctly (some moves may be rejected)
+=== RUN   TestArrayLogicalConcurrency/circular_moves_pattern_-_logical_concurrency
+    array_logical_concurrency_test.go:191: CIRCULAR PATTERN TEST:
+    array_logical_concurrency_test.go:192: Initial: [elem0, elem1, elem2] at positions [0, 1, 2]
+    array_logical_concurrency_test.go:206: ClientA: elem0 → pos1
+    array_logical_concurrency_test.go:210: ClientB: elem1 → pos2
+    array_logical_concurrency_test.go:214: ClientC: elem2 → pos0
+    array_logical_concurrency_test.go:217: 
+        Merging all replicas...
+time="2025-08-11T12:52:30+02:00" level=error msg="SetLiteral failed" AttemptedValue=value_0 ClientID=setup Error="cannot set literal value, conflict detected: elem_0-4a896a5a87f94028e6e0b1946863243713a1dea01d4021712cd831fd213d5de9" NodeID=elem_0-4a896a5a87f94028e6e0b1946863243713a1dea01d4021712cd831fd213d5de9
+time="2025-08-11T12:52:30+02:00" level=warning msg="Failed to set literal value during merge" Error="SetLiteral failed: cannot set literal value, conflict detected: elem_0-4a896a5a87f94028e6e0b1946863243713a1dea01d4021712cd831fd213d5de9" NodeID=elem_0-4a896a5a87f94028e6e0b1946863243713a1dea01d4021712cd831fd213d5de9
+time="2025-08-11T12:52:30+02:00" level=error msg="SetLiteral failed" AttemptedValue=value_1 ClientID=setup Error="cannot set literal value, conflict detected: elem_1-c50d0e89df54067a6cace0fe7463b4e29a9358a4febe630813d496ffb94c1f01" NodeID=elem_1-c50d0e89df54067a6cace0fe7463b4e29a9358a4febe630813d496ffb94c1f01
+time="2025-08-11T12:52:30+02:00" level=warning msg="Failed to set literal value during merge" Error="SetLiteral failed: cannot set literal value, conflict detected: elem_1-c50d0e89df54067a6cace0fe7463b4e29a9358a4febe630813d496ffb94c1f01" NodeID=elem_1-c50d0e89df54067a6cace0fe7463b4e29a9358a4febe630813d496ffb94c1f01
+time="2025-08-11T12:52:30+02:00" level=error msg="SetLiteral failed" AttemptedValue=value_0 ClientID=setup Error="cannot set literal value, conflict detected: elem_0-4a896a5a87f94028e6e0b1946863243713a1dea01d4021712cd831fd213d5de9" NodeID=elem_0-4a896a5a87f94028e6e0b1946863243713a1dea01d4021712cd831fd213d5de9
+time="2025-08-11T12:52:30+02:00" level=warning msg="Failed to set literal value during merge" Error="SetLiteral failed: cannot set literal value, conflict detected: elem_0-4a896a5a87f94028e6e0b1946863243713a1dea01d4021712cd831fd213d5de9" NodeID=elem_0-4a896a5a87f94028e6e0b1946863243713a1dea01d4021712cd831fd213d5de9
+time="2025-08-11T12:52:30+02:00" level=error msg="SetLiteral failed" AttemptedValue=value_1 ClientID=setup Error="cannot set literal value, conflict detected: elem_1-c50d0e89df54067a6cace0fe7463b4e29a9358a4febe630813d496ffb94c1f01" NodeID=elem_1-c50d0e89df54067a6cace0fe7463b4e29a9358a4febe630813d496ffb94c1f01
+time="2025-08-11T12:52:30+02:00" level=warning msg="Failed to set literal value during merge" Error="SetLiteral failed: cannot set literal value, conflict detected: elem_1-c50d0e89df54067a6cace0fe7463b4e29a9358a4febe630813d496ffb94c1f01" NodeID=elem_1-c50d0e89df54067a6cace0fe7463b4e29a9358a4febe630813d496ffb94c1f01
+time="2025-08-11T12:52:30+02:00" level=error msg="SetLiteral failed" AttemptedValue=value_2 ClientID=setup Error="cannot set literal value, conflict detected: elem_2-bcef9411e789f6855f95554b280607c333388e054f11597d8b4f42537f72ae43" NodeID=elem_2-bcef9411e789f6855f95554b280607c333388e054f11597d8b4f42537f72ae43
+time="2025-08-11T12:52:30+02:00" level=warning msg="Failed to set literal value during merge" Error="SetLiteral failed: cannot set literal value, conflict detected: elem_2-bcef9411e789f6855f95554b280607c333388e054f11597d8b4f42537f72ae43" NodeID=elem_2-bcef9411e789f6855f95554b280607c333388e054f11597d8b4f42537f72ae43
+time="2025-08-11T12:52:30+02:00" level=error msg="SetLiteral failed" AttemptedValue=value_0 ClientID=setup Error="cannot set literal value, conflict detected: elem_0-4a896a5a87f94028e6e0b1946863243713a1dea01d4021712cd831fd213d5de9" NodeID=elem_0-4a896a5a87f94028e6e0b1946863243713a1dea01d4021712cd831fd213d5de9
+time="2025-08-11T12:52:30+02:00" level=warning msg="Failed to set literal value during merge" Error="SetLiteral failed: cannot set literal value, conflict detected: elem_0-4a896a5a87f94028e6e0b1946863243713a1dea01d4021712cd831fd213d5de9" NodeID=elem_0-4a896a5a87f94028e6e0b1946863243713a1dea01d4021712cd831fd213d5de9
+time="2025-08-11T12:52:30+02:00" level=error msg="SetLiteral failed" AttemptedValue=value_1 ClientID=setup Error="cannot set literal value, conflict detected: elem_1-c50d0e89df54067a6cace0fe7463b4e29a9358a4febe630813d496ffb94c1f01" NodeID=elem_1-c50d0e89df54067a6cace0fe7463b4e29a9358a4febe630813d496ffb94c1f01
+time="2025-08-11T12:52:30+02:00" level=warning msg="Failed to set literal value during merge" Error="SetLiteral failed: cannot set literal value, conflict detected: elem_1-c50d0e89df54067a6cace0fe7463b4e29a9358a4febe630813d496ffb94c1f01" NodeID=elem_1-c50d0e89df54067a6cace0fe7463b4e29a9358a4febe630813d496ffb94c1f01
+time="2025-08-11T12:52:30+02:00" level=error msg="SetLiteral failed" AttemptedValue=value_0 ClientID=setup Error="cannot set literal value, conflict detected: elem_0-4a896a5a87f94028e6e0b1946863243713a1dea01d4021712cd831fd213d5de9" NodeID=elem_0-4a896a5a87f94028e6e0b1946863243713a1dea01d4021712cd831fd213d5de9
+time="2025-08-11T12:52:30+02:00" level=warning msg="Failed to set literal value during merge" Error="SetLiteral failed: cannot set literal value, conflict detected: elem_0-4a896a5a87f94028e6e0b1946863243713a1dea01d4021712cd831fd213d5de9" NodeID=elem_0-4a896a5a87f94028e6e0b1946863243713a1dea01d4021712cd831fd213d5de9
+time="2025-08-11T12:52:30+02:00" level=error msg="SetLiteral failed" AttemptedValue=value_1 ClientID=setup Error="cannot set literal value, conflict detected: elem_1-c50d0e89df54067a6cace0fe7463b4e29a9358a4febe630813d496ffb94c1f01" NodeID=elem_1-c50d0e89df54067a6cace0fe7463b4e29a9358a4febe630813d496ffb94c1f01
+time="2025-08-11T12:52:30+02:00" level=warning msg="Failed to set literal value during merge" Error="SetLiteral failed: cannot set literal value, conflict detected: elem_1-c50d0e89df54067a6cace0fe7463b4e29a9358a4febe630813d496ffb94c1f01" NodeID=elem_1-c50d0e89df54067a6cace0fe7463b4e29a9358a4febe630813d496ffb94c1f01
+time="2025-08-11T12:52:30+02:00" level=error msg="SetLiteral failed" AttemptedValue=value_2 ClientID=setup Error="cannot set literal value, conflict detected: elem_2-bcef9411e789f6855f95554b280607c333388e054f11597d8b4f42537f72ae43" NodeID=elem_2-bcef9411e789f6855f95554b280607c333388e054f11597d8b4f42537f72ae43
+time="2025-08-11T12:52:30+02:00" level=warning msg="Failed to set literal value during merge" Error="SetLiteral failed: cannot set literal value, conflict detected: elem_2-bcef9411e789f6855f95554b280607c333388e054f11597d8b4f42537f72ae43" NodeID=elem_2-bcef9411e789f6855f95554b280607c333388e054f11597d8b4f42537f72ae43
+    array_logical_concurrency_test.go:236: Final converged state:
+    array_logical_concurrency_test.go:344:   All replicas: [value_0@pos0, value_1@pos1, value_2@pos2]
+    array_logical_concurrency_test.go:239: SUCCESS: Circular moves resolved consistently
+=== RUN   TestArrayLogicalConcurrency/high_contention_same_position_-_logical_concurrency
+    array_logical_concurrency_test.go:272: HIGH CONTENTION TEST: Multiple elements → position 2
+    array_logical_concurrency_test.go:273: Initial: 5 elements at positions [0, 1, 2, 3, 4]
+    array_logical_concurrency_test.go:290: Client0: elem0 → pos2
+    array_logical_concurrency_test.go:290: Client1: elem1 → pos2
+    array_logical_concurrency_test.go:290: Client2: elem3 → pos2
+    array_logical_concurrency_test.go:290: Client3: elem4 → pos2
+    array_logical_concurrency_test.go:294: 
+        Merging replicas in chain...
+time="2025-08-11T12:52:30+02:00" level=error msg="SetLiteral failed" AttemptedValue=value_0 ClientID=setup Error="cannot set literal value, conflict detected: elem_0-d062e61003f79e195821b1427960d6e9c3d4beefbd9bb12f444cac72a382fa6c" NodeID=elem_0-d062e61003f79e195821b1427960d6e9c3d4beefbd9bb12f444cac72a382fa6c
+time="2025-08-11T12:52:30+02:00" level=warning msg="Failed to set literal value during merge" Error="SetLiteral failed: cannot set literal value, conflict detected: elem_0-d062e61003f79e195821b1427960d6e9c3d4beefbd9bb12f444cac72a382fa6c" NodeID=elem_0-d062e61003f79e195821b1427960d6e9c3d4beefbd9bb12f444cac72a382fa6c
+time="2025-08-11T12:52:30+02:00" level=error msg="SetLiteral failed" AttemptedValue=value_1 ClientID=setup Error="cannot set literal value, conflict detected: elem_1-4bd1174765373a12fb10bced003374599b1be1d6650d3d9fb88f762b93909ac2" NodeID=elem_1-4bd1174765373a12fb10bced003374599b1be1d6650d3d9fb88f762b93909ac2
+time="2025-08-11T12:52:30+02:00" level=warning msg="Failed to set literal value during merge" Error="SetLiteral failed: cannot set literal value, conflict detected: elem_1-4bd1174765373a12fb10bced003374599b1be1d6650d3d9fb88f762b93909ac2" NodeID=elem_1-4bd1174765373a12fb10bced003374599b1be1d6650d3d9fb88f762b93909ac2
+time="2025-08-11T12:52:30+02:00" level=error msg="SetLiteral failed" AttemptedValue=value_1 ClientID=setup Error="cannot set literal value, conflict detected: elem_1-4bd1174765373a12fb10bced003374599b1be1d6650d3d9fb88f762b93909ac2" NodeID=elem_1-4bd1174765373a12fb10bced003374599b1be1d6650d3d9fb88f762b93909ac2
+time="2025-08-11T12:52:30+02:00" level=warning msg="Failed to set literal value during merge" Error="SetLiteral failed: cannot set literal value, conflict detected: elem_1-4bd1174765373a12fb10bced003374599b1be1d6650d3d9fb88f762b93909ac2" NodeID=elem_1-4bd1174765373a12fb10bced003374599b1be1d6650d3d9fb88f762b93909ac2
+time="2025-08-11T12:52:30+02:00" level=error msg="SetLiteral failed" AttemptedValue=value_0 ClientID=setup Error="cannot set literal value, conflict detected: elem_0-d062e61003f79e195821b1427960d6e9c3d4beefbd9bb12f444cac72a382fa6c" NodeID=elem_0-d062e61003f79e195821b1427960d6e9c3d4beefbd9bb12f444cac72a382fa6c
+time="2025-08-11T12:52:30+02:00" level=warning msg="Failed to set literal value during merge" Error="SetLiteral failed: cannot set literal value, conflict detected: elem_0-d062e61003f79e195821b1427960d6e9c3d4beefbd9bb12f444cac72a382fa6c" NodeID=elem_0-d062e61003f79e195821b1427960d6e9c3d4beefbd9bb12f444cac72a382fa6c
+time="2025-08-11T12:52:30+02:00" level=error msg="SetLiteral failed" AttemptedValue=value_3 ClientID=setup Error="cannot set literal value, conflict detected: elem_3-17d38c5ed2c615bebf0d86af9f716b47942f2e337922bd07e8d24ac201814f1d" NodeID=elem_3-17d38c5ed2c615bebf0d86af9f716b47942f2e337922bd07e8d24ac201814f1d
+time="2025-08-11T12:52:30+02:00" level=warning msg="Failed to set literal value during merge" Error="SetLiteral failed: cannot set literal value, conflict detected: elem_3-17d38c5ed2c615bebf0d86af9f716b47942f2e337922bd07e8d24ac201814f1d" NodeID=elem_3-17d38c5ed2c615bebf0d86af9f716b47942f2e337922bd07e8d24ac201814f1d
+time="2025-08-11T12:52:30+02:00" level=error msg="SetLiteral failed" AttemptedValue=value_3 ClientID=setup Error="cannot set literal value, conflict detected: elem_3-17d38c5ed2c615bebf0d86af9f716b47942f2e337922bd07e8d24ac201814f1d" NodeID=elem_3-17d38c5ed2c615bebf0d86af9f716b47942f2e337922bd07e8d24ac201814f1d
+time="2025-08-11T12:52:30+02:00" level=warning msg="Failed to set literal value during merge" Error="SetLiteral failed: cannot set literal value, conflict detected: elem_3-17d38c5ed2c615bebf0d86af9f716b47942f2e337922bd07e8d24ac201814f1d" NodeID=elem_3-17d38c5ed2c615bebf0d86af9f716b47942f2e337922bd07e8d24ac201814f1d
+time="2025-08-11T12:52:30+02:00" level=error msg="SetLiteral failed" AttemptedValue=value_0 ClientID=setup Error="cannot set literal value, conflict detected: elem_0-d062e61003f79e195821b1427960d6e9c3d4beefbd9bb12f444cac72a382fa6c" NodeID=elem_0-d062e61003f79e195821b1427960d6e9c3d4beefbd9bb12f444cac72a382fa6c
+time="2025-08-11T12:52:30+02:00" level=warning msg="Failed to set literal value during merge" Error="SetLiteral failed: cannot set literal value, conflict detected: elem_0-d062e61003f79e195821b1427960d6e9c3d4beefbd9bb12f444cac72a382fa6c" NodeID=elem_0-d062e61003f79e195821b1427960d6e9c3d4beefbd9bb12f444cac72a382fa6c
+time="2025-08-11T12:52:30+02:00" level=error msg="SetLiteral failed" AttemptedValue=value_1 ClientID=setup Error="cannot set literal value, conflict detected: elem_1-4bd1174765373a12fb10bced003374599b1be1d6650d3d9fb88f762b93909ac2" NodeID=elem_1-4bd1174765373a12fb10bced003374599b1be1d6650d3d9fb88f762b93909ac2
+time="2025-08-11T12:52:30+02:00" level=warning msg="Failed to set literal value during merge" Error="SetLiteral failed: cannot set literal value, conflict detected: elem_1-4bd1174765373a12fb10bced003374599b1be1d6650d3d9fb88f762b93909ac2" NodeID=elem_1-4bd1174765373a12fb10bced003374599b1be1d6650d3d9fb88f762b93909ac2
+time="2025-08-11T12:52:30+02:00" level=error msg="SetLiteral failed" AttemptedValue=value_4 ClientID=setup Error="cannot set literal value, conflict detected: elem_4-ccb1ab16ff494a5343530aabf5196a5aa850b64a2141c02f1924634c9b4646a3" NodeID=elem_4-ccb1ab16ff494a5343530aabf5196a5aa850b64a2141c02f1924634c9b4646a3
+time="2025-08-11T12:52:30+02:00" level=warning msg="Failed to set literal value during merge" Error="SetLiteral failed: cannot set literal value, conflict detected: elem_4-ccb1ab16ff494a5343530aabf5196a5aa850b64a2141c02f1924634c9b4646a3" NodeID=elem_4-ccb1ab16ff494a5343530aabf5196a5aa850b64a2141c02f1924634c9b4646a3
+time="2025-08-11T12:52:30+02:00" level=error msg="SetLiteral failed" AttemptedValue=value_0 ClientID=setup Error="cannot set literal value, conflict detected: elem_0-d062e61003f79e195821b1427960d6e9c3d4beefbd9bb12f444cac72a382fa6c" NodeID=elem_0-d062e61003f79e195821b1427960d6e9c3d4beefbd9bb12f444cac72a382fa6c
+time="2025-08-11T12:52:30+02:00" level=warning msg="Failed to set literal value during merge" Error="SetLiteral failed: cannot set literal value, conflict detected: elem_0-d062e61003f79e195821b1427960d6e9c3d4beefbd9bb12f444cac72a382fa6c" NodeID=elem_0-d062e61003f79e195821b1427960d6e9c3d4beefbd9bb12f444cac72a382fa6c
+time="2025-08-11T12:52:30+02:00" level=error msg="SetLiteral failed" AttemptedValue=value_1 ClientID=setup Error="cannot set literal value, conflict detected: elem_1-4bd1174765373a12fb10bced003374599b1be1d6650d3d9fb88f762b93909ac2" NodeID=elem_1-4bd1174765373a12fb10bced003374599b1be1d6650d3d9fb88f762b93909ac2
+time="2025-08-11T12:52:30+02:00" level=warning msg="Failed to set literal value during merge" Error="SetLiteral failed: cannot set literal value, conflict detected: elem_1-4bd1174765373a12fb10bced003374599b1be1d6650d3d9fb88f762b93909ac2" NodeID=elem_1-4bd1174765373a12fb10bced003374599b1be1d6650d3d9fb88f762b93909ac2
+time="2025-08-11T12:52:30+02:00" level=error msg="SetLiteral failed" AttemptedValue=value_0 ClientID=setup Error="cannot set literal value, conflict detected: elem_0-d062e61003f79e195821b1427960d6e9c3d4beefbd9bb12f444cac72a382fa6c" NodeID=elem_0-d062e61003f79e195821b1427960d6e9c3d4beefbd9bb12f444cac72a382fa6c
+time="2025-08-11T12:52:30+02:00" level=warning msg="Failed to set literal value during merge" Error="SetLiteral failed: cannot set literal value, conflict detected: elem_0-d062e61003f79e195821b1427960d6e9c3d4beefbd9bb12f444cac72a382fa6c" NodeID=elem_0-d062e61003f79e195821b1427960d6e9c3d4beefbd9bb12f444cac72a382fa6c
+time="2025-08-11T12:52:30+02:00" level=error msg="SetLiteral failed" AttemptedValue=value_1 ClientID=setup Error="cannot set literal value, conflict detected: elem_1-4bd1174765373a12fb10bced003374599b1be1d6650d3d9fb88f762b93909ac2" NodeID=elem_1-4bd1174765373a12fb10bced003374599b1be1d6650d3d9fb88f762b93909ac2
+time="2025-08-11T12:52:30+02:00" level=warning msg="Failed to set literal value during merge" Error="SetLiteral failed: cannot set literal value, conflict detected: elem_1-4bd1174765373a12fb10bced003374599b1be1d6650d3d9fb88f762b93909ac2" NodeID=elem_1-4bd1174765373a12fb10bced003374599b1be1d6650d3d9fb88f762b93909ac2
+time="2025-08-11T12:52:30+02:00" level=error msg="SetLiteral failed" AttemptedValue=value_3 ClientID=setup Error="cannot set literal value, conflict detected: elem_3-17d38c5ed2c615bebf0d86af9f716b47942f2e337922bd07e8d24ac201814f1d" NodeID=elem_3-17d38c5ed2c615bebf0d86af9f716b47942f2e337922bd07e8d24ac201814f1d
+time="2025-08-11T12:52:30+02:00" level=warning msg="Failed to set literal value during merge" Error="SetLiteral failed: cannot set literal value, conflict detected: elem_3-17d38c5ed2c615bebf0d86af9f716b47942f2e337922bd07e8d24ac201814f1d" NodeID=elem_3-17d38c5ed2c615bebf0d86af9f716b47942f2e337922bd07e8d24ac201814f1d
+time="2025-08-11T12:52:30+02:00" level=error msg="SetLiteral failed" AttemptedValue=value_4 ClientID=setup Error="cannot set literal value, conflict detected: elem_4-ccb1ab16ff494a5343530aabf5196a5aa850b64a2141c02f1924634c9b4646a3" NodeID=elem_4-ccb1ab16ff494a5343530aabf5196a5aa850b64a2141c02f1924634c9b4646a3
+time="2025-08-11T12:52:30+02:00" level=warning msg="Failed to set literal value during merge" Error="SetLiteral failed: cannot set literal value, conflict detected: elem_4-ccb1ab16ff494a5343530aabf5196a5aa850b64a2141c02f1924634c9b4646a3" NodeID=elem_4-ccb1ab16ff494a5343530aabf5196a5aa850b64a2141c02f1924634c9b4646a3
+    array_logical_concurrency_test.go:325: Final state after contention resolution:
+    array_logical_concurrency_test.go:344:   All replicas: [value_0@pos0, value_1@pos1, value_2@pos2, value_3@pos3, value_4@pos4]
+    array_logical_concurrency_test.go:328: SUCCESS: High contention resolved without conflicts
+--- PASS: TestArrayLogicalConcurrency (0.00s)
+    --- PASS: TestArrayLogicalConcurrency/concurrent_array_moves_-_logical_concurrency (0.00s)
+    --- PASS: TestArrayLogicalConcurrency/circular_moves_pattern_-_logical_concurrency (0.00s)
+    --- PASS: TestArrayLogicalConcurrency/high_contention_same_position_-_logical_concurrency (0.00s)
+=== RUN   TestArrayMetadataSerialization
+=== RUN   TestArrayMetadataSerialization/save_and_load_array_with_elements
+    array_serialization_test.go:41: INITIAL STATE: Array with 5 elements
+    array_serialization_test.go:52: Saved tree data size: 6988 bytes
+    array_serialization_test.go:60: LOADED STATE: Verifying array metadata preservation
+    array_serialization_test.go:81:   Element 0: IsArrayElement=true, ArrayIndex=0, BTreeKey=lseq_0_3389
+    array_serialization_test.go:81:   Element 1: IsArrayElement=true, ArrayIndex=1, BTreeKey=lseq_1_1740
+    array_serialization_test.go:81:   Element 2: IsArrayElement=true, ArrayIndex=2, BTreeKey=lseq_2_3769
+    array_serialization_test.go:81:   Element 3: IsArrayElement=true, ArrayIndex=3, BTreeKey=lseq_3_6823
+    array_serialization_test.go:81:   Element 4: IsArrayElement=true, ArrayIndex=4, BTreeKey=lseq_4_9064
+    array_serialization_test.go:88: SUCCESS: Array metadata properly serialized and deserialized
+=== RUN   TestArrayMetadataSerialization/save_and_load_after_array_moves
+time="2025-08-11T12:52:30+02:00" level=error msg="Failed to compute path for notifySubscribers" Error="parent  not found for node moveTestArray-a6cc817bba8096fb8588aada08a3a0cb38a50b1825b4ba49d1b2ae3538be382e" NodeID=moveTestArray-a6cc817bba8096fb8588aada08a3a0cb38a50b1825b4ba49d1b2ae3538be382e
+time="2025-08-11T12:52:30+02:00" level=error msg="Failed to compute path for notifySubscribers" Error="parent  not found for node moveTestArray-a6cc817bba8096fb8588aada08a3a0cb38a50b1825b4ba49d1b2ae3538be382e" NodeID=moveTestArray-a6cc817bba8096fb8588aada08a3a0cb38a50b1825b4ba49d1b2ae3538be382e
+time="2025-08-11T12:52:30+02:00" level=error msg="Failed to compute path for notifySubscribers" Error="parent  not found for node moveTestArray-a6cc817bba8096fb8588aada08a3a0cb38a50b1825b4ba49d1b2ae3538be382e" NodeID=moveTestArray-a6cc817bba8096fb8588aada08a3a0cb38a50b1825b4ba49d1b2ae3538be382e
+    array_serialization_test.go:111: INITIAL: Elements at positions [0, 1, 2]
+    array_serialization_test.go:119: AFTER MOVES: Elements rearranged
+    array_serialization_test.go:121:   Original elem0 now at position 2
+    array_serialization_test.go:121:   Original elem1 now at position 1
+    array_serialization_test.go:121:   Original elem2 now at position 0
+    array_serialization_test.go:155: SUCCESS: Array moves preserved through serialization
+=== RUN   TestArrayMetadataSerialization/clone_preserves_array_metadata
+time="2025-08-11T12:52:30+02:00" level=error msg="Failed to compute path for notifySubscribers" Error="parent  not found for node cloneArray-b74b7bfbe7e08937355c16ae4d4fbed5db48dfb3d8027e9a5bdcbf2b8dee8c37" NodeID=cloneArray-b74b7bfbe7e08937355c16ae4d4fbed5db48dfb3d8027e9a5bdcbf2b8dee8c37
+    array_serialization_test.go:174: ORIGINAL: Array root IsArrayRoot=true, Element IsArrayElement=true
+    array_serialization_test.go:192: CLONED: Array root IsArrayRoot=true, Element IsArrayElement=true
+    array_serialization_test.go:206: SUCCESS: Clone preserves array metadata and functionality
+--- PASS: TestArrayMetadataSerialization (0.00s)
+    --- PASS: TestArrayMetadataSerialization/save_and_load_array_with_elements (0.00s)
+    --- PASS: TestArrayMetadataSerialization/save_and_load_after_array_moves (0.00s)
+    --- PASS: TestArrayMetadataSerialization/clone_preserves_array_metadata (0.00s)
+PASS
+ok  	github.com/eislab-cps/synctree/pkg/crdt	0.007s

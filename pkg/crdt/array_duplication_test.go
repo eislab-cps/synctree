@@ -258,9 +258,7 @@ func TestArrayMoveTreeStructurePreservation(t *testing.T) {
 		}
 		
 		// 3. Verify no cycles in tree structure
-		visited := make(map[core.NodeID]bool)
-		hasCycles := tree.hasCycle(tree.Root.ID, visited)
-		assert.False(t, hasCycles, "Tree should not have cycles")
+		assert.False(t, hasCycle(tree), "Tree should not have cycles")
 		
 		t.Logf("SUCCESS: Tree structure preserved during array moves")
 	})
@@ -299,15 +297,11 @@ func TestArrayMoveTreeStructurePreservation(t *testing.T) {
 			t.Logf("Move allowed - verifying no cycles created")
 			
 			// If move was allowed, verify no actual cycles exist
-			visited := make(map[core.NodeID]bool)
-			hasCycles := tree.hasCycle(tree.Root.ID, visited)
-			assert.False(t, hasCycles, "No cycles should exist even if move was allowed")
+			assert.False(t, hasCycle(tree), "No cycles should exist even if move was allowed")
 		}
 		
 		// Verify tree integrity regardless of whether move was allowed
-		visited := make(map[core.NodeID]bool)
-		hasCycles := tree.hasCycle(tree.Root.ID, visited)
-		assert.False(t, hasCycles, "Tree should never have cycles")
+		assert.False(t, hasCycle(tree), "Tree should never have cycles")
 		
 		t.Logf("SUCCESS: Tree structure integrity maintained")
 	})

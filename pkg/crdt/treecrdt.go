@@ -3,9 +3,7 @@ package crdt
 import (
 	"errors"
 	"fmt"
-	"math/rand"
 	"sort"
-	"time"
 
 	"github.com/eislab-cps/synctree/internal/crypto"
 	"github.com/eislab-cps/synctree/pkg/abac"
@@ -981,6 +979,11 @@ func (c *TreeCRDT) merge(c2 *TreeCRDT, secure bool, prvKey string) error {
 			cloned.IsRoot = remote.IsRoot
 			cloned.Nonce = remote.Nonce
 			cloned.Signature = remote.Signature
+			// Copy array-specific metadata
+			cloned.IsArrayRoot = remote.IsArrayRoot
+			cloned.IsArrayElement = remote.IsArrayElement
+			cloned.ArrayIndex = remote.ArrayIndex
+			cloned.BTreeKey = remote.BTreeKey
 			c.Nodes[id] = cloned
 			local = cloned
 		}
@@ -999,6 +1002,11 @@ func (c *TreeCRDT) merge(c2 *TreeCRDT, secure bool, prvKey string) error {
 				}).Warning("Failed to set literal value during merge")
 				continue
 			}
+		}
+
+		// Handle array element metadata merging
+		if remote.IsArrayElement || remote.IsArrayRoot {
+			c.mergeArrayElementMetadata(local, remote)
 		}
 
 		for _, re := range remote.Edges {
@@ -1210,6 +1218,9 @@ func (c *TreeCRDT) merge(c2 *TreeCRDT, secure bool, prvKey string) error {
 		local.Owner = mergedOwner
 	}
 
+	// Rebalance all arrays after merge to ensure proper convergence
+	c.mergeArrayElements()
+	
 	c.normalize()
 	return nil
 }
@@ -1235,6 +1246,11 @@ func (c *TreeCRDT) cloneNodeFromRemote(c2 *TreeCRDT, id core.NodeID) {
 	cloned.ParentID = remote.ParentID
 	cloned.Nonce = remote.Nonce
 	cloned.Signature = remote.Signature
+	// Copy array-specific metadata
+	cloned.IsArrayRoot = remote.IsArrayRoot
+	cloned.IsArrayElement = remote.IsArrayElement
+	cloned.ArrayIndex = remote.ArrayIndex
+	cloned.BTreeKey = remote.BTreeKey
 	c.Nodes[id] = cloned
 }
 
@@ -1662,188 +1678,3 @@ func (c *TreeCRDT) GetVectorClock() vectorclock.VectorClock {
 	return clock
 }
 
-// Array B-Tree Methods
-// ====================
-
-// AddArrayElement adds an element to an array B-tree at the specified index
-// The array root must have IsArrayRoot = true
-func (c *TreeCRDT) AddArrayElement(arrayRootID, elementID core.NodeID, index int, clientID core.ClientID) error {
-	arrayRoot := c.Nodes[arrayRootID]
-	if arrayRoot == nil {
-		return fmt.Errorf("array root node %s not found", arrayRootID)
-	}
-	if !arrayRoot.IsArrayRoot {
-		return fmt.Errorf("node %s is not an array root", arrayRootID)
-	}
-	
-	element := c.Nodes[elementID]
-	if element == nil {
-		return fmt.Errorf("element node %s not found", elementID)
-	}
-	
-	// Set array metadata on element
-	element.IsArrayElement = true
-	element.ArrayIndex = index
-	element.ParentID = arrayRootID
-	
-	// Generate B-tree key using LSEQ-based approach
-	element.BTreeKey = c.generateBTreeKey(arrayRootID, index)
-	
-	// Update vector clock
-	element.Clock[clientID] = element.Clock[clientID] + 1
-	
-	// Add edge using B-tree structure
-	return c.addArrayEdge(arrayRootID, elementID, element.BTreeKey, clientID)
-}
-
-// MoveArrayElement atomically moves an element within an array to a new position
-// Uses LWW conflict resolution for concurrent moves of the same element
-func (c *TreeCRDT) MoveArrayElement(elementID, arrayRootID core.NodeID, newIndex int, clientID core.ClientID) error {
-	element := c.Nodes[elementID]
-	if element == nil {
-		return fmt.Errorf("element node %s not found", elementID)
-	}
-	if !element.IsArrayElement {
-		return fmt.Errorf("node %s is not an array element", elementID)
-	}
-	
-	arrayRoot := c.Nodes[arrayRootID]
-	if arrayRoot == nil {
-		return fmt.Errorf("array root node %s not found", arrayRootID)
-	}
-	if !arrayRoot.IsArrayRoot {
-		return fmt.Errorf("node %s is not an array root", arrayRootID)
-	}
-	
-	// Create move operation with current vector clock for LWW resolution
-	newClock := vectorclock.CopyClock(element.Clock)
-	newClock[clientID] = newClock[clientID] + 1
-	
-	// Check for concurrent move conflicts using LWW - use ResolveConflict
-	winningClock, winningOwner := vectorclock.ResolveConflict(element.Clock, newClock, element.Owner, clientID, false)
-	
-	if vectorclock.ClocksEqual(winningClock, newClock) && winningOwner == clientID {
-		// Update element metadata atomically
-		element.ArrayIndex = newIndex
-		element.ParentID = arrayRootID
-		element.BTreeKey = c.generateBTreeKey(arrayRootID, newIndex)
-		element.Clock = winningClock
-		
-		// Rebalance B-tree structure after move
-		return c.rebalanceArrayBTree(arrayRootID)
-	}
-	
-	return nil // Move was rejected due to LWW conflict resolution
-}
-
-// GetArrayElements returns all elements in an array ordered by their ArrayIndex
-func (c *TreeCRDT) GetArrayElements(arrayRootID core.NodeID) []*NodeCRDT {
-	arrayRoot := c.Nodes[arrayRootID]
-	if arrayRoot == nil || !arrayRoot.IsArrayRoot {
-		return nil
-	}
-	
-	var elements []*NodeCRDT
-	for _, node := range c.Nodes {
-		if node.IsArrayElement && node.ParentID == arrayRootID {
-			elements = append(elements, node)
-		}
-	}
-	
-	// Sort by array index
-	sort.Slice(elements, func(i, j int) bool {
-		return elements[i].ArrayIndex < elements[j].ArrayIndex
-	})
-	
-	return elements
-}
-
-// Helper Methods
-// ==============
-
-// generateBTreeKey creates an LSEQ-based B-tree key for the given position
-func (c *TreeCRDT) generateBTreeKey(arrayRootID core.NodeID, index int) string {
-	// For now, use simple LSEQ implementation
-	// This will be enhanced with proper LSEQ fractional positioning
-	return fmt.Sprintf("lseq_%d_%d", index, c.getNextSequenceNumber())
-}
-
-// addArrayEdge adds an edge in the B-tree structure
-func (c *TreeCRDT) addArrayEdge(fromID, toID core.NodeID, btreeKey string, clientID core.ClientID) error {
-	// For now, use simple edge addition
-	// This will be enhanced with proper B-tree balancing
-	return c.AddEdge(fromID, toID, btreeKey, clientID)
-}
-
-
-// rebalanceArrayBTree rebalances the B-tree structure after element moves
-func (c *TreeCRDT) rebalanceArrayBTree(arrayRootID core.NodeID) error {
-	elements := c.GetArrayElements(arrayRootID)
-	
-	// Detect and resolve index conflicts using a comprehensive approach
-	indexMap := make(map[int][]*NodeCRDT)
-	for _, elem := range elements {
-		indexMap[elem.ArrayIndex] = append(indexMap[elem.ArrayIndex], elem)
-	}
-	
-	// Find conflicts and resolve them
-	var conflictedElements []*NodeCRDT
-	for _, elementsAtIndex := range indexMap {
-		if len(elementsAtIndex) > 1 {
-			// Sort by vector clock - elements with newer clocks (higher precedence) get preference
-			sort.Slice(elementsAtIndex, func(i, j int) bool {
-				// Return true if i should come before j
-				// Use DominatesOrEqual: if j dominates i, then i comes before j (lower precedence)
-				return vectorclock.DominatesOrEqual(elementsAtIndex[j].Clock, elementsAtIndex[i].Clock)
-			})
-			
-			// First element keeps its position, others need new positions
-			for i := 1; i < len(elementsAtIndex); i++ {
-				conflictedElements = append(conflictedElements, elementsAtIndex[i])
-			}
-		}
-	}
-	
-	// Reassign positions to conflicted elements by finding free spaces
-	if len(conflictedElements) > 0 {
-		// Create set of occupied positions
-		occupiedPositions := make(map[int]bool)
-		for _, elem := range elements {
-			// Skip the conflicted elements when building occupied set
-			isConflicted := false
-			for _, conflicted := range conflictedElements {
-				if elem.ID == conflicted.ID {
-					isConflicted = true
-					break
-				}
-			}
-			if !isConflicted {
-				occupiedPositions[elem.ArrayIndex] = true
-			}
-		}
-		
-		// Find free positions starting from 0
-		nextFreePosition := 0
-		for _, elem := range conflictedElements {
-			// Find next available position
-			for occupiedPositions[nextFreePosition] {
-				nextFreePosition++
-			}
-			
-			// Assign the free position
-			elem.ArrayIndex = nextFreePosition
-			elem.BTreeKey = c.generateBTreeKey(arrayRootID, elem.ArrayIndex)
-			occupiedPositions[nextFreePosition] = true
-			nextFreePosition++
-		}
-	}
-	
-	return nil
-}
-
-// getNextSequenceNumber returns a sequence number for LSEQ keys
-func (c *TreeCRDT) getNextSequenceNumber() int {
-	// Simple implementation - in production this would be more sophisticated
-	rand.Seed(time.Now().UnixNano())
-	return rand.Intn(9000) + 1000 // Random number between 1000-9999
-}
