@@ -11,19 +11,19 @@ import (
 
 func TestInterop(t *testing.T) {
 	prvKey := "d6eb959e9aec2e6fdc44b5862b269e987b8a4d6f2baca542d8acaa97ee5e74f6"
-	idendity, err := crypto.CreateIdentityFromString(prvKey)
+	identity, err := crypto.CreateIdentityFromString(prvKey)
 	assert.Nil(t, err)
 
 	fmt.Println("Message=hello")
 	hash := crypto.GenerateHashFromString("hello")
 
-	signature, err := crypto.Sign(hash, idendity.PrivateKey())
+	signature, err := crypto.Sign(hash, identity.PrivateKey())
 	assert.Nil(t, err)
 	signatureStr := hex.EncodeToString(signature)
 
-	fmt.Println("prvkey: " + idendity.PrivateKeyAsHex())
-	fmt.Println("pubkey: " + idendity.PublicKeyAsHex())
-	fmt.Println("id: " + idendity.ID())
+	fmt.Println("prvkey: " + identity.PrivateKeyAsHex())
+	fmt.Println("pubkey: " + identity.PublicKeyAsHex())
+	fmt.Println("id: " + identity.ID())
 	fmt.Println("digest: " + hash.String())
 	fmt.Println("signature: " + string(signatureStr))
 

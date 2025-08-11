@@ -39,7 +39,7 @@ I've created a comprehensive test suite that defines the **intended behavior** o
 - **TestTreeCRDTSetFieldsConflictLastWriterWins**: Good LWW test
 - **TestTreeCRDTSetFieldsConflictNodeIDTieBraker**: Good tie-breaking test  
 - **TestTreeCRDTNetworkPartitionArrayPromotion**: Good array promotion test
-- **TestTreeCRDTMergeLitterals**: Tests merge behavior
+- **TestTreeCRDTMergeLiterals**: Tests merge behavior
 - Most existing tests are **well-designed** and should continue to pass
 
 **`conflict_issues_test.go`** - **Identifies Real Issues** ✅
@@ -56,7 +56,7 @@ I've created a comprehensive test suite that defines the **intended behavior** o
 TestTreeCRDTSetFieldsConflictLastWriterWins     # Vector clocks work well
 TestTreeCRDTSetFieldsConflictNodeIDTieBraker    # Tie-breaking works
 TestTreeCRDTBasicArrayPromotion                 # Basic promotion works
-TestTreeCRDTMergeLitterals                      # Basic merge works
+TestTreeCRDTMergeLiterals                      # Basic merge works
 ```
 
 ### ❌ **Tests That Currently Fail (Define Intended Fixes)**

@@ -8,13 +8,13 @@ import (
 )
 
 func TestRecoveredID(t *testing.T) {
-	idendity, err := CreateIdentity()
+	identity, err := CreateIdentity()
 	assert.Nil(t, err)
 
 	msg := "test"
 	hash := GenerateHashFromString(msg)
 
-	signatureBytes, err := Sign(hash, idendity.PrivateKey())
+	signatureBytes, err := Sign(hash, identity.PrivateKey())
 	assert.Nil(t, err)
 
 	recoveredID, err := RecoveredID(hash, []byte(string(signatureBytes)+"too_large_signature"))
@@ -22,17 +22,17 @@ func TestRecoveredID(t *testing.T) {
 
 	recoveredID, err = RecoveredID(hash, signatureBytes)
 	assert.Nil(t, err)
-	assert.Equal(t, idendity.ID(), recoveredID)
+	assert.Equal(t, identity.ID(), recoveredID)
 }
 
 func TestRecoverFromStrings(t *testing.T) {
-	idendity, err := CreateIdentity()
+	identity, err := CreateIdentity()
 	assert.Nil(t, err)
 
 	msg := "test"
 	hash := GenerateHashFromString(msg)
 
-	signatureBytes, err := Sign(hash, idendity.PrivateKey())
+	signatureBytes, err := Sign(hash, identity.PrivateKey())
 	assert.Nil(t, err)
 
 	hash2, err := CreateHashFromString(hash.String())
@@ -40,68 +40,68 @@ func TestRecoverFromStrings(t *testing.T) {
 
 	recoveredID, err := RecoveredID(hash2, signatureBytes)
 	assert.Nil(t, err)
-	assert.Equal(t, idendity.ID(), recoveredID)
+	assert.Equal(t, identity.ID(), recoveredID)
 }
 
 func TestRecoverFromStringsInvalidHash(t *testing.T) {
-	idendity, err := CreateIdentity()
+	identity, err := CreateIdentity()
 	assert.Nil(t, err)
 
 	msg := "test"
 	hash := GenerateHashFromString(msg)
 
-	signatureBytes, err := Sign(hash, idendity.PrivateKey())
+	signatureBytes, err := Sign(hash, identity.PrivateKey())
 	assert.Nil(t, err)
 
 	hash = GenerateHash([]byte("blablabla"))
 
 	recoveredID, err := RecoveredID(hash, signatureBytes)
 	assert.Nil(t, err)
-	assert.NotEqual(t, idendity.ID(), recoveredID)
+	assert.NotEqual(t, identity.ID(), recoveredID)
 }
 
 func TestRecoverPublicKey(t *testing.T) {
-	idendity, err := CreateIdentity()
+	identity, err := CreateIdentity()
 	assert.Nil(t, err)
 
 	hash := GenerateHash([]byte("test"))
 
-	signatureBytes, err := Sign(hash, idendity.PrivateKey())
+	signatureBytes, err := Sign(hash, identity.PrivateKey())
 	assert.Nil(t, err)
 
 	pub, err := RecoverPublicKey(hash, signatureBytes)
 	assert.Nil(t, err)
-	assert.Equal(t, idendity.PublicKeyAsHex(), hex.EncodeToString(pub))
+	assert.Equal(t, identity.PublicKeyAsHex(), hex.EncodeToString(pub))
 }
 
 func TestRecoverPublicKeyInvalidSignature(t *testing.T) {
-	idendity, err := CreateIdentity()
+	identity, err := CreateIdentity()
 	assert.Nil(t, err)
 
-	idendity2, err := CreateIdentity()
+	identity2, err := CreateIdentity()
 	assert.Nil(t, err)
 
 	hash := GenerateHash([]byte("test"))
 
-	signatureBytes, err := Sign(hash, idendity2.PrivateKey())
+	signatureBytes, err := Sign(hash, identity2.PrivateKey())
 	assert.Nil(t, err)
 
 	pub, err := RecoverPublicKey(hash, signatureBytes)
 	assert.Nil(t, err)
-	assert.NotEqual(t, idendity.PublicKeyAsHex(), hex.EncodeToString(pub))
+	assert.NotEqual(t, identity.PublicKeyAsHex(), hex.EncodeToString(pub))
 }
 
 func TestSignAndVerify(t *testing.T) {
-	idendity, err := CreateIdentity()
+	identity, err := CreateIdentity()
 	assert.Nil(t, err)
 
 	msg := "test"
 	hash := GenerateHashFromString(msg)
 
-	signatureBytes, err := Sign(hash, idendity.PrivateKey())
+	signatureBytes, err := Sign(hash, identity.PrivateKey())
 	assert.Nil(t, err)
 
-	decPub, err := hex.DecodeString(idendity.PublicKeyAsHex())
+	decPub, err := hex.DecodeString(identity.PublicKeyAsHex())
 	assert.Nil(t, err)
 
 	ok, err := Verify(decPub, hash, signatureBytes)
@@ -110,19 +110,19 @@ func TestSignAndVerify(t *testing.T) {
 }
 
 func TestSignAndVerifyInvalidPubKey(t *testing.T) {
-	idendity, err := CreateIdentity()
+	identity, err := CreateIdentity()
 	assert.Nil(t, err)
 
-	idendity2, err := CreateIdentity()
+	identity2, err := CreateIdentity()
 	assert.Nil(t, err)
 
 	msg := "test"
 	hash := GenerateHashFromString(msg)
 
-	signatureBytes, err := Sign(hash, idendity.PrivateKey())
+	signatureBytes, err := Sign(hash, identity.PrivateKey())
 	assert.Nil(t, err)
 
-	decPub, err := hex.DecodeString(idendity2.PublicKeyAsHex())
+	decPub, err := hex.DecodeString(identity2.PublicKeyAsHex())
 	assert.Nil(t, err)
 
 	ok, err := Verify(decPub, hash, signatureBytes)
@@ -132,17 +132,17 @@ func TestSignAndVerifyInvalidPubKey(t *testing.T) {
 
 func TestInterop(t *testing.T) {
 	prvKey := "d6eb959e9aec2e6fdc44b5862b269e987b8a4d6f2baca542d8acaa97ee5e74f6"
-	idendity, err := CreateIdentityFromString(prvKey)
+	identity, err := CreateIdentityFromString(prvKey)
 	assert.Nil(t, err)
 
 	hash := GenerateHashFromString("hello")
 
-	// signature, err := Sign(hash, idendity.PrivateKey())
+	// signature, err := Sign(hash, identity.PrivateKey())
 	// assert.Nil(t, err)
 	// signatureStr := hex.EncodeToString(signature)
-	// fmt.Println("prvkey: " + idendity.PrivateKeyAsHex())
-	// fmt.Println("pubkey: " + idendity.PublicKeyAsHex())
-	// fmt.Println("id: " + idendity.ID())
+	// fmt.Println("prvkey: " + identity.PrivateKeyAsHex())
+	// fmt.Println("pubkey: " + identity.PublicKeyAsHex())
+	// fmt.Println("id: " + identity.ID())
 	// fmt.Println("digest: " + hash.String())
 	// fmt.Println("signature: " + string(signatureStr))
 
@@ -150,5 +150,5 @@ func TestInterop(t *testing.T) {
 	signatureBytes, err := hex.DecodeString(signatureHex)
 	recoveredID, err := RecoveredID(hash, signatureBytes)
 	assert.Nil(t, err)
-	assert.Equal(t, recoveredID, idendity.ID())
+	assert.Equal(t, recoveredID, identity.ID())
 }

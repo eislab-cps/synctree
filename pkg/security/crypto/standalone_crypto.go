@@ -32,13 +32,13 @@ func (standaloneCrypto *StandaloneCrypto) GenerateID(prvKey string) (string, err
 }
 
 func (standaloneCrypto *StandaloneCrypto) GenerateSignature(data string, prvKey string) (string, error) {
-	idendity, err := crypto.CreateIdentityFromString(prvKey)
+	identity, err := crypto.CreateIdentityFromString(prvKey)
 	if err != nil {
 		return "", err
 	}
 
 	hash := crypto.GenerateHashFromString(data)
-	signatureBytes, err := crypto.Sign(hash, idendity.PrivateKey())
+	signatureBytes, err := crypto.Sign(hash, identity.PrivateKey())
 	if err != nil {
 		return "", err
 	}

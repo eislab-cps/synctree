@@ -454,7 +454,7 @@ func TestTreeCRDTValidation(t *testing.T) {
 // // 2. Set different literal values on the same node in both graphs
 // // 3. Merge the graphs
 // // 4. The merged graph should be an array of literals since n1 + n2 → [n1, n2] sorted by node ID
-func TestTreeCRDTMergeLitterals(t *testing.T) {
+func TestTreeCRDTMergeLiterals(t *testing.T) {
 	c1 := NewTreeCRDT()
 	c2 := NewTreeCRDT()
 
@@ -1024,7 +1024,7 @@ func TestTreeCRDTMarkDeletedMap(t *testing.T) {
 	assert.Equal(t, 4, len(c.Nodes), "Tree should still have the root node after deletion")
 }
 
-func TestTreeCRDTMarkDeletedLitteral(t *testing.T) {
+func TestTreeCRDTMarkDeletedLiteral(t *testing.T) {
 	clientID := core.ClientID("clientA")
 
 	initialJSON := []byte(`"A"`)
